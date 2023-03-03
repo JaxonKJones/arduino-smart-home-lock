@@ -1,6 +1,5 @@
 #include <SoftwareSerial.h>
 #include <avr/sleep.h>
-#include <avr/power.h>
 #include <EEPROM.h>
 #include <Wire.h>
 #include "RTClib.h"
@@ -17,7 +16,7 @@ Servo lock;
 #define STATE_PIN 5  // set state pin to pin 4
 #define EN_PIN 4  // set enable pin to pin 5
 #define BUTTON_PIN 2  // set button pin to pin 2
-#define CLOCK 3 // interrupt pin from DS3231
+#define ALARM_PIN 3 // interrupt pin from DS3231
 #define SERVO 9 // pwm pin for servo
 #define MOS 12 // servo enable pin
 SoftwareSerial BTserial(6, 7); // RX | TX
@@ -30,14 +29,14 @@ void save(char day, char h1, char h2, char m1, char m2, char state);
 void del(int index);
 char load(bool print);
 char nextEvent(char events[]);
-void setAlarm(char event[]);
+void setAlarm(long);
 void bluetoothMode();
 void scheduleMode();
 void enterSleep();
 void dev();
 void servo(int state);
-void buttonInterrupt();
-void rtcInterrupt();
+void buttonISR();
+void alarmISR();
 
 // setup function
 void setup() {
@@ -53,12 +52,12 @@ void setup() {
   //rtc config
   Wire.begin();
   rtc.begin();
-  pinMode(CLOCK, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(CLOCK), rtcInterrupt, FALLING);
+  pinMode(ALARM_PIN, INPUT_PULLUP);
+  rtc.disableAlarm(1);
+  rtc.disableAlarm(2);
   rtc.clearAlarm(1);
   rtc.clearAlarm(2);
-  rtc.disableAlarm(2);
-  // rtc.setAlarm1(“00:00:01:00”, RTC_OFFSET, RTC_ALM1_MODE4 ); 
+  rtc.writeSqwPinMode(DS3231_OFF);
 
 
   lock.attach(9);
@@ -308,23 +307,25 @@ char load(bool print){
   
 }
 
-char nextEvent(char events[]) {
+long nextEvent(char events[]) {
   // get length of array
   int numEvents = 0;
   for (int i = 0; events[i] != NULL; i++) {
     numEvents++;
   }
   numEvents = numEvents/6;
-  // Serial.print("Number of Events: ");
-  // Serial.println(numEvents);
+  Serial.print("Number of Events: ");
+  Serial.println(numEvents);
   DateTime now = rtc.now();// get current date/time from RTC module
   long currentDOW = now.dayOfTheWeek();
   long currentHour = now.hour();
   long currentMinute = now.minute();
   long eventTime = 0;
   long closestEventTime = 0;
+  char nextState;
+  int eventIndex = NULL;
+  String nextEvent = "";
 
-  char nextEvent[7];
 
   for (int i = 0, j = 0; i < numEvents; i++, j+=6, eventTime=0) { // i handles how many events and j handles characters in events 
     // get day of week, hour, minute, and state of event
@@ -332,21 +333,21 @@ char nextEvent(char events[]) {
     long eventHour = (events[j+1] - '0') * 10 + (events[j+2] - '0');
     long eventMinute = (events[j+3] - '0') * 10 + (events[j+4] - '0');
     char state = events[j+5];
+    String event = String(eventDOW) + "-" + String(eventHour) + ":" + String(eventMinute) + ":" + String(state);
 
     // calculate time to midnight
     long timeToMidnight = (24L * 3600L) - (currentHour * 3600L + currentMinute * 60L); 
     
-    // Serial.print("Event: ");
-    // Serial.println(String(eventDOW) + ":" + String(eventHour) + ":" + String(eventMinute) + ":" + String(state));  
+    // Serial.print("Event: " + event);
     
     if (eventDOW < currentDOW || (eventDOW == currentDOW && (eventHour < currentHour || (eventHour == currentHour && eventMinute < currentMinute)))) {
       // The event is in the past or next week
-      eventTime = timeToMidnight + (eventDOW - currentDOW) * 3600L*24L + eventHour * 3600L + eventMinute * 60L;
+      eventTime = timeToMidnight + (eventDOW - currentDOW - 1) * 3600L*24L + eventHour * 3600L + eventMinute * 60L;
       eventTime += 3600L*24L*7L; // Add one week to the time
     }
     else if(eventDOW > currentDOW){
       // The event is in the future before the end of the week
-      eventTime = timeToMidnight + (eventDOW - currentDOW) * 3600L*24L + eventHour * 3600L + eventMinute * 60L;
+      eventTime = timeToMidnight + (eventDOW - currentDOW - 1) * 3600L*24L + eventHour * 3600L + eventMinute * 60L;
     }
     else{
       // The event is in the future today
@@ -357,21 +358,27 @@ char nextEvent(char events[]) {
 
     if (closestEventTime == 0 || eventTime < closestEventTime) {
       closestEventTime = eventTime;
-      for(int k = 0; k < 6; k++){
-        nextEvent[k] = events[j+k];
-      }
-      nextEvent[7] = NULL;
+      nextState = state;
+      eventIndex = i;
+      nextEvent = event;
+
     }
     // delay(2000);
   }
-  // Serial.println("");
-  // Serial.print("Next Event: ");
-  // Serial.println(nextEvent);
-  return nextEvent;
+  Serial.println("");
+  Serial.println("Next Event: " + nextEvent);
+  Serial.println("Time to event: " + String(closestEventTime) + " (" +String(float(closestEventTime)/float(3600L)) +" hours)");
+  Serial.println("Next State: " + String(nextState));
+  Serial.flush();
+  EEPROM.write(1, nextState); // save next state to EEPROM index 1
+
+  return closestEventTime;
 }
 
-void setAlarm(char nextEvent[]){
-
+void setAlarm(long timeToEvent) {
+  DateTime now = rtc.now();
+  DateTime nextAlarm = now.unixtime() + timeToEvent;
+  rtc.setAlarm1(nextAlarm, DS3231_A1_Minute);
 }
 
 void bluetoothMode(){
@@ -406,9 +413,11 @@ void scheduleMode(){
   BTserial.write("\n--Schedule Mode Active--\n");
   BTserial.write("Bluetooth will disactivate but can be awoken using the on system switch...\n");
   while(true){
-    setAlarm(nextEvent(load(false)))
-    // enterSleep();
-    delay(1000);
+    char sample[] = {'6', '1', '4', '3', '9', 'L'};
+    // setAlarm(nextEvent(load(false)));
+    setAlarm(nextEvent(sample));
+    enterSleep();
+    // delay(1000);
   }
 }
 
@@ -417,8 +426,9 @@ void enterSleep(){
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);  // Setting the sleep mode, in this case full sleep
   
   noInterrupts();                       // Disable interrupts
-  attachInterrupt(digitalPinToInterrupt(alarmPin), alarm_ISR, LOW);
-  
+  attachInterrupt(digitalPinToInterrupt(ALARM_PIN), alarmISR, LOW);
+  // Serial.println("Going to sleep!");
+  // Serial.flush(); 
   interrupts();                         // Allow interrupts again
   sleep_cpu();                          // Enter sleep mode
 
@@ -427,7 +437,7 @@ void enterSleep(){
   // Disable and clear alarm
   rtc.disableAlarm(1);
   rtc.clearAlarm(1);
- }
+}
 
 void dev(){
   BTserial.write("\n--DEBUG--\n");
@@ -507,15 +517,26 @@ void set_rtc(){
   }
 }
 
-void buttonInterrupt(){
+
+// Interrupt Service Routines
+void buttonISR(){
   // exit to main menu
   Serial.println("Button Pressed");
 }
 
-void rtcInterrupt(){
-  if (rtc.alarmFired(1)) { 
-      Serial.println("Alarm!");
-      delay(1000); // wait for a second
-      rtc.clearAlarm(1); // clear alarm flag 
-    }
+void alarmISR() {
+  sleep_disable(); // Disable sleep mode
+  detachInterrupt(digitalPinToInterrupt(ALARM_PIN)); // Detach the interrupt to stop it firing
+  // This function is called when the alarm goes off
+  Serial.println("Alarm triggered!");
+  // read state from eeprom index 1
+  char state = EEPROM.read(1);
+  Serial.print("State: ");
+  Serial.println(state);
+  if(state == 'U'){
+    servo(0);
+  }
+  else if(state == 'L'){
+    servo(90);
+  }
 }
