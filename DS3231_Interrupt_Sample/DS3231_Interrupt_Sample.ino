@@ -46,7 +46,7 @@ void setup () {
   }
 
   // If required set time
-  rtc.adjust(DateTime(F(__DATE__), F(__TIME__))); // To compiled time
+  // rtc.adjust(DateTime(F(__DATE__), F(__TIME__))); // To compiled time
   //rtc.adjust(DateTime(2020, 7, 3, 20, 0, 0)); // Or explicitly, e.g. July 3, 2020 at 8pm
 
   // Disable and clear both alarms
@@ -93,7 +93,6 @@ void enterSleep(){
   
   Serial.println("I'm back!");          // Print message to show we're back
  }
-
 
 void alarm_ISR() {
   // This runs when SQW pin is low. It will wake up the µController
