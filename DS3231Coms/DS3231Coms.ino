@@ -20,101 +20,84 @@ void setup() {
 }
 
 // function declarations
-String nextEvent(char* events[]);
-
+char nextEvent(char events[]);
 
 // main loop
 void loop() {
-  char* events[] = {"5:17:05:U", "6:15:02:U", "4:19:00", "2:20:01:L", "3:23:00:U", "4:01:00:L", "4:18:00:U", "5:15:00:L", "0:10:00:U", NULL};
-  int saves = 2
-  char sched[6*saves]; // array of 10 pointers to strings
-  for i in 
-  String final = num1 + ":" + num2 + ":" + num3 + ":" + state;
-  myStrings[0] = ;
-  Serial.println(myStrings[0]);
+  // char* events[] = {"5:17:05:U", "6:15:02:U", "4:19:00", "2:20:01:L", "3:23:00:U", "4:01:00:L", "4:18:00:U", "5:15:00:L", "0:10:00:U", NULL};
 
-  // // add a string to the array
-  // myArray[0] = (char*) malloc(strlen("hello") + 1); // allocate memory for the string
-  // strcpy(myArray[0], "hello"); // copy the string into the allocated memory
-
-  // // add another string to the array
-  // myArray[1] = (char*) malloc(strlen("world") + 1); // allocate memory for the string
-  // strcpy(myArray[1], "world"); // copy the string into the allocated memory
-
-  // nextEvent(events);
-  delay(10000);
+  char events[] = {'0', '1', '0', '0', '5', 'U', '6', '1', '5', '0', '2', 'U', '4', '2', '3', '5', '9', 'L', NULL};
+  // Serial.println(events);
+  nextEvent(events);
+  delay(100000);
 }
 
 
 // function definitions
-String nextEvent(char* events[]) {
-  // get length of array based off NULL operator
+char nextEvent(char events[]) {
+  // get length of array
   int numEvents = 0;
-  while (events[numEvents] != NULL) {
+  for (int i = 0; events[i] != NULL; i++) {
     numEvents++;
   }
+  numEvents = numEvents/6;
   Serial.print("Number of Events: ");
   Serial.println(numEvents);
-  DateTime now = rtc.now();      // get current date/time from RTC module
+  DateTime now = rtc.now();// get current date/time from RTC module
   long currentDOW = now.dayOfTheWeek();
   long currentHour = now.hour();
   long currentMinute = now.minute();
   long eventTime = 0;
   long closestEventTime = 0;
-  String closestEvent = "";
-  String debugMsg = "";
 
-  for (int i = 0; i < numEvents; i++, eventTime=0) {
-    String event = String(events[i]);
-    long eventDOW = event.substring(0,1).toInt();
-    long eventHour = event.substring(2,4).toInt();
-    long eventMinute = event.substring(5,7).toInt();
-    Serial.print(currentHour);
-    Serial.print(":");
-    Serial.print(currentMinute);
+  char nextEvent[7];
+
+  for (int i = 0, j = 0; i < numEvents; i++, j+=6, eventTime=0) { // i handles how many events and j handles characters in events 
+    // get day of week, hour, minute, and state of event
+    long eventDOW = (events[j] - '0');
+    long eventHour = (events[j+1] - '0') * 10 + (events[j+2] - '0');
+    long eventMinute = (events[j+3] - '0') * 10 + (events[j+4] - '0');
+    char state = events[j+5];
+
+    // calculate time to midnight
     long timeToMidnight = (24L * 3600L) - (currentHour * 3600L + currentMinute * 60L); 
     
     Serial.print("Event: ");
-    Serial.print("");
-    Serial.println(String(events[i]));  
+    Serial.println(String(eventDOW) + ":" + String(eventHour) + ":" + String(eventMinute) + ":" + String(state));  
     
     if (eventDOW < currentDOW || (eventDOW == currentDOW && (eventHour < currentHour || (eventHour == currentHour && eventMinute < currentMinute)))) {
       // The event is in the past or next week
       eventTime = timeToMidnight + (eventDOW - currentDOW) * 3600L*24L + eventHour * 3600L + eventMinute * 60L;
       eventTime += 3600L*24L*7L; // Add one week to the time
-      debugMsg = "Event will occur next week";
     }
     else if(eventDOW > currentDOW){
       // The event is in the future before the end of the week
       eventTime = timeToMidnight + (eventDOW - currentDOW) * 3600L*24L + eventHour * 3600L + eventMinute * 60L;
-      debugMsg = "Event is in the future before the end of the week";
     }
     else{
       // The event is in the future today
       eventTime = (eventHour - currentHour) * 3600L + (eventMinute - currentMinute) * 60L;
-      debugMsg = "Event is in the future today";
     }
-    // Serial.print("Time to Midnight: ");
-    // Serial.print(timeToMidnight);
-    // Serial.print(" ");
     Serial.print("Time to Event: ");
-    Serial.print(eventTime);
-    Serial.print(" ");
-    Serial.println(debugMsg);
+    Serial.println(eventTime);
 
     if (closestEventTime == 0 || eventTime < closestEventTime) {
       closestEventTime = eventTime;
-      closestEvent = events[i];
-      // Serial.print("\nNew Closest Event: ");
-      // Serial.println(closestEvent);
+      for(int k = 0; k < 6; k++){
+        nextEvent[k] = events[j+k];
+      }
+      nextEvent[7] = NULL;
     }
     delay(2000);
   }
   Serial.println("");
-  Serial.print("Closest Event: ");
-  Serial.println(closestEvent);
-  return closestEvent;
+  Serial.print("Next Event: ");
+  Serial.println(nextEvent);
+  return nextEvent;
 }
+
+
+
 
 void getInput(){
   if (Serial.available() > 0) {
