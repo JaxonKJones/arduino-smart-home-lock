@@ -23,6 +23,23 @@ Servo lock;
 #define MOS 12 // servo enable pin
 SoftwareSerial BTserial(6, 7); // RX | TX
 
+// function declarations
+int menu();
+void pair();
+void scheduler();
+void save(int day, int hour, int minute, char state);
+void del(int index);
+char* load(bool print);
+String nextEvent(char* events);
+void setAlarm(String event);
+void bluetoothMode();
+void scheduleMode();
+void dev();
+void servo(int state);
+void buttonInterrupt();
+void rtcInterrupt();
+
+// setup function
 void setup() {
   // Low Power Settings
   ADCSRA = 0; // Disable ADC
@@ -41,7 +58,7 @@ void setup() {
   rtc.clearAlarm(1);
   rtc.clearAlarm(2);
   rtc.disableAlarm(2);
-  rtc.setAlarm1(“00:00:01:00”, RTC_OFFSET, RTC_ALM1_MODE4 ); 
+  // rtc.setAlarm1(“00:00:01:00”, RTC_OFFSET, RTC_ALM1_MODE4 ); 
 
 
   lock.attach(9);
@@ -56,6 +73,7 @@ void setup() {
   }
 }
 
+// main loop
 void loop() {
   int mode = menu();
   if (mode == '1'){
@@ -77,6 +95,7 @@ void loop() {
 }
 
 
+// function definitions
 int menu(){
   if(digitalRead(STATE_PIN) == LOW){
     pair();
@@ -193,10 +212,33 @@ void save(int day, int hour, int minute, char state){
   EEPROM.write(0, saves + 1);
 }
 
-void load(bool print){
+void del(int index){
+  //go to index in eeprom
+  int address = 1 + (index * 4);
+  //delete schedule
+  EEPROM.write(address, 0);
+  EEPROM.write(address + 1, 0);
+  EEPROM.write(address + 2, 0);
+  EEPROM.write(address + 3, 0);
+  //decrement number of schedules
+  int saves = EEPROM.read(0);
+  EEPROM.write(0, saves - 1);
+  //move all schedules after index up
+  while(EEPROM.read(address + 4) != 0){
+    EEPROM.write(address, EEPROM.read(address + 4));
+    EEPROM.write(address + 1, EEPROM.read(address + 5));
+    EEPROM.write(address + 2, EEPROM.read(address + 6));
+    EEPROM.write(address + 3, EEPROM.read(address + 7));
+    address += 4;
+  }
+}
+
+char* load(bool print){
+  int sched = EEPROM.read(0);
+  char* events[sched];
   if (print){
     Serial.print("Schedules: ");
-    Serial.println(EEPROM.read(0));
+    Serial.println(sched);
     Serial.println("Day:  Hour:  Minute:  State:");
     //print out all schedules from eeprom
     int address = 1;
@@ -215,16 +257,107 @@ void load(bool print){
       
       address += 4;
     }
+    return NULL;
   }
   else{
-    //sort all schedules stored in eeprom
-
-    //compare current time to find the next closest scheduled event
-
-    //set alarm interrupt on DS3231 for that time
-
+    int address = 1;
+    int i = 0;
+    while(EEPROM.read(address) != 0){
+      int day = EEPROM.read(address);
+      int hour = EEPROM.read(address + 1);
+      int minute = EEPROM.read(address + 2);
+      char state = EEPROM.read(address + 3);
+      Serial.print(day);
+      Serial.print("      ");
+      Serial.print(hour);
+      Serial.print("      ");
+      Serial.print(minute);
+      Serial.print("      ");
+      Serial.println(state);
+      
+      address += 4;
+      //add event to events array
+      String event = String(day) + ":" + String(hour) + ":" + String(minute) + ":" + String(state);
+      events[i] = event;
+      i++;
+    }
+    return events;
   }
   
+}
+
+char* nextEvent(char* events[]) {
+  // get length of array based off NULL operator
+  int numEvents = 0;
+  while (events[numEvents] != NULL) {
+    numEvents++;
+  }
+  Serial.print("Number of Events: ");
+  Serial.println(numEvents);
+  DateTime now = rtc.now();      // get current date/time from RTC module
+  long currentDOW = now.dayOfTheWeek();
+  long currentHour = now.hour();
+  long currentMinute = now.minute();
+
+  long eventTime = 0;
+  long closestEventTime = 0;
+  String closestEvent = "";
+  String debugMsg = "";
+
+  for (int i = 0; i < numEvents; i++, eventTime=0) {
+    String event = String(events[i]);
+    long eventDOW = event.substring(0,1).toInt();
+    long eventHour = event.substring(2,4).toInt();
+    long eventMinute = event.substring(5,7).toInt();
+    // Serial.print(currentHour);
+    // Serial.print(":");
+    // Serial.print(currentMinute);
+    long timeToMidnight = (24L * 3600L) - (currentHour * 3600L + currentMinute * 60L); 
+    
+    // Serial.print("Event: ");
+    // Serial.print("");
+    // Serial.println(String(events[i]));  
+    
+    if (eventDOW < currentDOW || (eventDOW == currentDOW && (eventHour < currentHour || (eventHour == currentHour && eventMinute < currentMinute)))) {
+      // The event is in the past or next week
+      eventTime = timeToMidnight + (eventDOW - currentDOW) * 3600L*24L + eventHour * 3600L + eventMinute * 60L;
+      eventTime += 3600L*24L*7L; // Add one week to the time
+      debugMsg = "Event will occur next week";
+    }
+    else if(eventDOW > currentDOW){
+      // The event is in the future before the end of the week
+      eventTime = timeToMidnight + (eventDOW - currentDOW) * 3600L*24L + eventHour * 3600L + eventMinute * 60L;
+      debugMsg = "Event is in the future before the end of the week";
+    }
+    else{
+      // The event is in the future today
+      eventTime = (eventHour - currentHour) * 3600L + (eventMinute - currentMinute) * 60L;
+      debugMsg = "Event is in the future today";
+    }
+    // Serial.print("Time to Midnight: ");
+    // Serial.print(timeToMidnight);
+    // Serial.print(" ");
+    // Serial.print("Time to Event: ");
+    // Serial.print(eventTime);
+    // Serial.print(" ");
+    // Serial.println(debugMsg);
+
+    if (closestEventTime == 0 || eventTime < closestEventTime) {
+      closestEventTime = eventTime;
+      closestEvent = events[i];
+      // Serial.print("\nNew Closest Event: ");
+      // Serial.println(closestEvent);
+    }
+    delay(2000);
+  }
+  // Serial.println("");
+  // Serial.print("Closest Event: ");
+  // Serial.println(closestEvent);
+  return closestEvent;
+}
+
+void setAlarm(String event){
+
 }
 
 void bluetoothMode(){
@@ -259,50 +392,10 @@ void scheduleMode(){
   BTserial.write("\n--Schedule Mode Active--\n");
   BTserial.write("Bluetooth will disactivate but can be awoken using the on system switch...\n");
   while(true){
-    // check to see if button has been pressed. If so, exit to main menu
-    // if (digitalRead(BUTTON_PIN)==HIGH){
-    //   BTserial.write("button pressed...");
-    //   break;
-    // }
-
-
-    // load schedule from EEPROM
-    load(true);
-    delay(6000);
-
-    // enter low power mode
-    // set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+    setAlarm(nextEvent(load(false)))
+    // sleep_cpu();
+    delay(1000);
   }
-}
-
-String nextEvent(String events[], int numEvents) {
-  DateTime now = rtc.now();      // get current date/time from RTC module
-  int dayOfWeek = now.dayOfTheWeek();
-  int currentHour = now.hour();
-  int currentMinute = now.minute();
-
-  DateTime closestEventTime = 0;
-  String closestEvent = "";
-
-  for (int i = 0; i < numEvents; i++) {
-    String event = events[i];
-    int eventDOW = event.substring(0,1).toInt();
-    int eventHour = event.substring(2,4).toInt();
-    int eventMinute = event.substring(5,7).toInt();
-
-    time_t eventTime = nextMidnight(currentTime) + (eventDOW - currentDOW) * SECS_PER_DAY + eventHour * SECS_PER_HOUR + eventMinute * SECS_PER_MIN;
-    if (eventDOW < currentDOW || (eventDOW == currentDOW && (eventHour < currentHour || (eventHour == currentHour && eventMinute <= currentMinute)))) {
-      // The event is in the past or happening now
-      // Add one week to the time
-      eventTime += SECS_PER_WEEK;
-    }
-
-    if (closestEventTime == 0 || eventTime < closestEventTime) {
-      closestEventTime = eventTime;
-      closestEvent = events[i];
-    }
-  }
-  return closestEvent;
 }
 
 void dev(){
@@ -383,7 +476,7 @@ void set_rtc(){
   }
 }
 
-void button_interrupt(){
+void buttonInterrupt(){
   // exit to main menu
   Serial.println("Button Pressed");
 }
