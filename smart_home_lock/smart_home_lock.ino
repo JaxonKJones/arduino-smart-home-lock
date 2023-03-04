@@ -8,10 +8,6 @@
 
 RTC_DS3231 rtc;
 Servo lock;
-// #include "LowPower.h"
-// #include <TimeLib.h>
-
-// see https://learn.sparkfun.com/tutorials/reducing-arduino-power-consumption/all
 
 #define STATE_PIN 5  // set state pin to pin 4
 #define EN_PIN 4  // set enable pin to pin 5
@@ -22,13 +18,14 @@ Servo lock;
 SoftwareSerial BTserial(6, 7); // RX | TX
 
 // function declarations
+void auth();
 int menu();
 void pair();
 void scheduler();
 void save(char day, char h1, char h2, char m1, char m2, char state);
 void del(int index);
-char load(bool print);
-char nextEvent(char events[]);
+char* load(bool print);
+long nextEvent(char events[]);
 void setAlarm(long);
 void bluetoothMode();
 void scheduleMode();
@@ -39,12 +36,7 @@ void buttonISR();
 void alarmISR();
 
 // setup function
-void setup() {
-  // Low Power Settings
-  ADCSRA = 0; // Disable ADC
-  set_sleep_mode(SLEEP_MODE_PWR_DOWN); // Set sleep mode to power-down
-  sleep_enable(); // Enable sleep mode
- 
+void setup() { 
   // Serial Settings
   Serial.begin(9600);
   BTserial.begin(9600);
@@ -52,6 +44,7 @@ void setup() {
   //rtc config
   Wire.begin();
   rtc.begin();
+  rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
   pinMode(ALARM_PIN, INPUT_PULLUP);
   rtc.disableAlarm(1);
   rtc.disableAlarm(2);
@@ -59,8 +52,10 @@ void setup() {
   rtc.clearAlarm(2);
   rtc.writeSqwPinMode(DS3231_OFF);
 
-
+  //servo config
   lock.attach(9);
+
+  //pin config
   pinMode(STATE_PIN, INPUT);
   pinMode(BUTTON_PIN, INPUT); // -- CHANGE TO BE INTERRUPT
   pinMode(EN_PIN, OUTPUT);
@@ -70,6 +65,7 @@ void setup() {
   if(digitalRead(STATE_PIN) == LOW){
     pair();
   }
+  auth();
 }
 
 // main loop
@@ -95,6 +91,29 @@ void loop() {
 
 
 // function definitions
+void auth(){
+  BTserial.write("\n--Jones Home--\n");
+  BTserial.write("Enter Password: ");
+  while(true){
+    if (BTserial.available()) {
+      String input = BTserial.readString();
+      delay(30);
+      if (input == "0"){
+        // Serial.println("Exiting...");
+        return;
+      }
+      else if (input == "1123"){
+        BTserial.write("\nAuthenticated...\n");
+        return;
+      }
+      else{
+        BTserial.write("\nPassword Incorrect");
+        return;
+      }
+    }
+  }
+}
+
 int menu(){
   if(digitalRead(STATE_PIN) == LOW){
     pair();
@@ -144,47 +163,73 @@ void scheduler(){
       String input = BTserial.readString();
       delay(30);
       if (input == "0"){
-        Serial.println("Exiting...");
+        // Serial.println("Exiting...");
         break;
       }
       else if (input == "1"){
         //Add schedule
-        BTserial.write("\nEnter Schedule: (d:hh:mm:U/L) or Exit\n");
+        BTserial.write("\nEnter Schedule: (d-hh:mm-U/L) or Exit\n");
         while(true){
           if (BTserial.available()){
             String input = BTserial.readString();
             delay(30);
             if (input == "0"){
-              Serial.println("Exiting...");
+              // Serial.println("Exiting...");
               return;
             }
             else{
-              // Parse input to get hour, minute, and day of week
-              // int day = input.substring(0, 1).toInt();
-              // int hour = input.substring(2, 4).toInt();
-              // int minute = input.substring(5, 7).toInt();
-              // String stateTemp = input.substring(8, 9);
-              // char state = stateTemp.charAt(0);
-              char day = input.substring(0, 1).charAt(0);
-              char h1 = input.substring(2, 3).charAt(0);
-              char h2 = input.substring(3, 4).charAt(0);
-              char m1 = input.substring(5, 6).charAt(0);
-              char m2 = input.substring(6, 7).charAt(0);
-              char state = input.substring(8, 9).charAt(0);
-              //save schedule to EEPROM
-              save(day, h1, h2, m1, m2, state);
-              // Serial.println(day);
-              // Serial.println(hour);
-              // Serial.println(minute);
-              // Serial.println(state);
-              BTserial.write("\nSchedule set!");
+              // Serial.println(input);
+              // Serial.println(strlen(input.c_str()));
+              if(strlen(input.c_str()) == 9){
+                // Parse input to get hour, minute, and day of week
+                char day = input.substring(0, 1).charAt(0);
+                char h1 = input.substring(2, 3).charAt(0);
+                char h2 = input.substring(3, 4).charAt(0);
+                char m1 = input.substring(5, 6).charAt(0);
+                char m2 = input.substring(6, 7).charAt(0);
+                char state = input.substring(8, 9).charAt(0);
+                Serial.println(String(day) + "-" + String(h1) + String(h2) + ":" + String(m1) + String(m2) + "-" + String(state));
+                //save schedule to EEPROM
+                save(day, h1, h2, m1, m2, state);
+                BTserial.write("\nSchedule Saved!\n");
+                break;
+              }
             }
           }
         }
 
       }
       else if(input == "2"){
+        //Send schedules to BTserial
+        load(true);
+        BTserial.write("\nEnter Schedule index to Delete or Exit");
+        while(true){
+          if (BTserial.available()){
+            String input = BTserial.readString();
+            delay(30);
+            if (input == "0"){
+              // Serial.println("Exiting...");
+              return;
+            }
+            else{
+              // Serial.println(input);
+              // Serial.println(strlen(input.c_str()));
+              if(strlen(input.c_str()) == 1){
+                // Parse input to get hour, minute, and day of week
+                int index = input.substring(0, 1).toInt();
+                Serial.println(String(index));
+                //save schedule to EEPROM
+                del(index-1);
+                BTserial.write("\nSchedule Deleted!\n");
+                break;
+              }
+            }
+          }
+        }
+
         //Delete schedule
+        
+
       }
       else if(input == "3"){
         //See all schedules
@@ -202,23 +247,28 @@ void save(char day, char h1, char h2, char m1, char m2, char state){
   //check eeprom to see where the next available slot is
   int address = 2; // index 1 reserved for number of schedules, index 2 reserved for next state (U/L)
   int saves = EEPROM.read(0);
-  while(EEPROM.read(address) != 0){
-    address += 6;
-  }
+  int i = saves*6+address;
   //save day
-  EEPROM.write(address, day);
+  EEPROM.write(i, day);
+  Serial.println("var saved: " + String(day) + " to address: " + String(i) + " in eeprom");
   //save h1
-  EEPROM.write(address + 1, h1);
+  EEPROM.write(i + 1, h1);
+  Serial.println("var saved: " + String(h1) + " to address: " + String(i + 1) + " in eeprom");  
   //save h2
-  EEPROM.write(address + 2, h2);
+  EEPROM.write(i + 2, h2);
+  Serial.println("var saved: " + String(h2) + " to address: " + String(i + 2) + " in eeprom");
   //save m1
-  EEPROM.write(address + 3, m1);
+  EEPROM.write(i + 3, m1);
+  Serial.println("var saved: " + String(m1) + " to address: " + String(i + 3) + " in eeprom");
   //save m2
-  EEPROM.write(address + 4, m2);
+  EEPROM.write(i + 4, m2);
+  Serial.println("var saved: " + String(m2) + " to address: " + String(i + 4) + " in eeprom");
   //save state
-  EEPROM.write(address + 5, state);
+  EEPROM.write(i + 5, state);
+  Serial.println("var saved: " + String(state) + " to address: " + String(i + 5) + " in eeprom");
   //increment number of schedules
   EEPROM.write(0, saves + 1);
+  Serial.println("var saved: " + String(saves + 1) + " to address: " + String(0) + " in eeprom");
 
 }
 
@@ -236,79 +286,45 @@ void del(int index){
   int saves = EEPROM.read(0);
   EEPROM.write(0, saves - 1);
   //move all schedules after index up
-  while(EEPROM.read(address + 4) != 0){
-    EEPROM.write(address, EEPROM.read(address + 4));
-    EEPROM.write(address + 1, EEPROM.read(address + 5));
-    EEPROM.write(address + 2, EEPROM.read(address + 6));
-    EEPROM.write(address + 3, EEPROM.read(address + 7));
-    EEPROM.write(address + 4, EEPROM.read(address + 8));
-    EEPROM.write(address + 5, EEPROM.read(address + 9));
-
-    address += 6;
+  for(int i = address; i < (saves * 6) + 1; i++){
+    EEPROM.write(i, EEPROM.read(i + 6));
   }
 }
 
-char load(bool print){
+char* load(bool print){
   int sched = EEPROM.read(0);
-  char events[sched*6+1];
+  int eventsLength = sched * 6 + 1;//add 1 for null terminator
+  char *events = (char*)malloc(eventsLength * sizeof(char));
   if (print){
-    Serial.print("Schedules: ");
-    Serial.println(sched);
-    Serial.println("Day:  Hour:  Minute:  State:");
+    // Serial.println("Schedules: " + String(sched));
+    // Serial.println("Day:  HH:  MM:  State:");
+    BTserial.write(("\nSchedules: " + String(sched) + "\n").c_str());
+    BTserial.write(("#:   Day:    HH:   MM:   State:"));
     //print out all schedules from eeprom
-    int address = 1;
-    while(EEPROM.read(address) != 0){
-      int day = EEPROM.read(address);
-      int hour = EEPROM.read(address + 1);
-      int minute = EEPROM.read(address + 2);
-      char state = EEPROM.read(address + 3);
-      Serial.print(day);
-      Serial.print("      ");
-      Serial.print(hour);
-      Serial.print("      ");
-      Serial.print(minute);
-      Serial.print("      ");
-      Serial.println(state);
-      
-      address += 4;
-    }
+    int address = 2;
+    for(int i = 0; i < sched; i++){
+      BTserial.write(("\n" + String(i+1) + ":     "+ String(char(EEPROM.read(address))) + "     " + String(char(EEPROM.read(address + 1))) + String(char(EEPROM.read(address + 2))) + "     " + String(char(EEPROM.read(address + 3))) + String(char(EEPROM.read(address + 4))) + "       " + String(char(EEPROM.read(address + 5))) + "").c_str());
+      address += 6;
+      }
     return NULL;
   }
   else{
-    int address = 1;
-    int i = 0;
-    while(EEPROM.read(address) != 0){
-      // fix this to make it work with the events array
-      int day = EEPROM.read(address);
-      int hour = EEPROM.read(address + 1);
-      int minute = EEPROM.read(address + 2);
-      char state = EEPROM.read(address + 3);
-      Serial.print(day);
-      Serial.print("      ");
-      Serial.print(hour);
-      Serial.print("      ");
-      Serial.print(minute);
-      Serial.print("      ");
-      Serial.println(state);
-      
-      address += 4;
-      //add event to events array
-      events[i] = day;
-      events[i+1] = hour;
-      events[i+2] = minute;
-      events[i+3] = state;
-
-
-      //add null as last element of events array
-      
+    // load all schedules from eeprom
+    for(int i = 0; i < eventsLength; i++){
+      events[i] = char(EEPROM.read(i+2));
+      // Serial.println("var loaded: " + String(events[i]) + " from address: " + String(i+2) + " in eeprom");
     }
+
+    //add null as last element of events array
+    events[eventsLength] = NULL;
+    // Serial.println(events);
     return events;
   }
-  
 }
 
 long nextEvent(char events[]) {
   // get length of array
+  Serial.println(events);
   int numEvents = 0;
   for (int i = 0; events[i] != NULL; i++) {
     numEvents++;
@@ -333,7 +349,7 @@ long nextEvent(char events[]) {
     long eventHour = (events[j+1] - '0') * 10 + (events[j+2] - '0');
     long eventMinute = (events[j+3] - '0') * 10 + (events[j+4] - '0');
     char state = events[j+5];
-    String event = String(eventDOW) + "-" + String(eventHour) + ":" + String(eventMinute) + ":" + String(state);
+    String event = String(eventDOW) + "-" + String(eventHour) + ":" + String(eventMinute) + "-" + String(state);
 
     // calculate time to midnight
     long timeToMidnight = (24L * 3600L) - (currentHour * 3600L + currentMinute * 60L); 
@@ -370,12 +386,15 @@ long nextEvent(char events[]) {
   Serial.println("Time to event: " + String(closestEventTime) + " (" +String(float(closestEventTime)/float(3600L)) +" hours)");
   Serial.println("Next State: " + String(nextState));
   Serial.flush();
+  
   EEPROM.write(1, nextState); // save next state to EEPROM index 1
 
   return closestEventTime;
 }
 
 void setAlarm(long timeToEvent) {
+  Serial.println("Setting alarm for " + String(timeToEvent) + " seconds from now");
+  Serial.flush();
   DateTime now = rtc.now();
   DateTime nextAlarm = now.unixtime() + timeToEvent;
   rtc.setAlarm1(nextAlarm, DS3231_A1_Minute);
@@ -393,10 +412,12 @@ void bluetoothMode(){
       if (command == '1') {
         //lock door
         servo(1);
+        BTserial.write("\nDoor locked");
       }
       else if (command == '2') {
         //unlock door
         servo(0);
+        BTserial.write("\nDoor Unlocked");
       }
       else if (command == '0') {
         //exit to main menu
@@ -413,15 +434,16 @@ void scheduleMode(){
   BTserial.write("\n--Schedule Mode Active--\n");
   BTserial.write("Bluetooth will disactivate but can be awoken using the on system switch...\n");
   while(true){
-    char sample[] = {'6', '1', '4', '3', '9', 'L'};
-    // setAlarm(nextEvent(load(false)));
-    setAlarm(nextEvent(sample));
+    char* events = load(false);
+    setAlarm(nextEvent(events));
+    free(events);
     enterSleep();
-    // delay(1000);
   }
 }
 
 void enterSleep(){
+  //turn off hc-05
+  
   sleep_enable();                       // Enabling sleep mode
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);  // Setting the sleep mode, in this case full sleep
   
@@ -434,9 +456,7 @@ void enterSleep(){
 
   /* The program will continue from here when it wakes */
   
-  // Disable and clear alarm
-  rtc.disableAlarm(1);
-  rtc.clearAlarm(1);
+  
 }
 
 void dev(){
@@ -447,7 +467,7 @@ void dev(){
       String input = BTserial.readString();
       delay(30);
       if (input == "0"){
-        Serial.println("Exiting...");
+        // Serial.println("Exiting...");
         break;
       }
       else if (input == "1"){
@@ -456,21 +476,8 @@ void dev(){
       else if(input == "2"){
         DateTime now = rtc.now();
         float temperature = rtc.getTemperature();
-        Serial.print("Date: ");
-        Serial.print(now.year(), DEC);
-        Serial.print('/');
-        Serial.print(now.month(), DEC);
-        Serial.print('/');
-        Serial.print(now.day(), DEC);
-        Serial.print(" ");
-        Serial.print(now.hour(), DEC);
-        Serial.print(':');
-        Serial.print(now.minute(), DEC);
-        Serial.print(':');
-        Serial.print(now.second(), DEC);
-        Serial.print(", Temperature: ");
-        Serial.print(temperature);
-        Serial.println(" °C");
+        // Serial.println("Date: " + String(now.year()) + "/" + String(now.month()) + "/" + String(now.day()) + "  " + String(now.hour()) + ":" + String(now.minute()) + ":" + String(now.second()) + ", Temperature: " + String(temperature) + " °C");
+        BTserial.write(("\nDate: " + String(now.year()) + "/" + String(now.month()) + "/" + String(now.day()) + "  " + String(now.hour()) + ":" + String(now.minute()) + ":" + String(now.second()) + ", Temperature: " + String(temperature) + " °C").c_str());
       }
       else if(input == "3"){
         set_rtc();
@@ -478,6 +485,12 @@ void dev(){
       else if(input == "4"){
         for (int i = 0 ; i < EEPROM.length() ; i++) {
           EEPROM.write(i, 0);
+        }
+        BTserial.write("\nEEPROM Reset\n");
+      }
+      else if(input == "5"){
+        for (int i = 0 ; i < EEPROM.length() ; i++) {
+          Serial.print(String(char(EEPROM.read(i))) + " ");
         }
       }
     }
@@ -491,7 +504,6 @@ void servo(int state){
     lock.write(0);
     delay(500);
     digitalWrite(MOS, LOW);
-    BTserial.write("\nDoor Unlocked");
   }
   else if(state == 1){
     digitalWrite(MOS, HIGH);
@@ -499,7 +511,6 @@ void servo(int state){
     lock.write(90);
     delay(500);
     digitalWrite(MOS, LOW);
-    BTserial.write("\nDoor Locked");
   }
 }
 
@@ -527,8 +538,11 @@ void buttonISR(){
 void alarmISR() {
   sleep_disable(); // Disable sleep mode
   detachInterrupt(digitalPinToInterrupt(ALARM_PIN)); // Detach the interrupt to stop it firing
+  // Disable and clear alarm
+  rtc.disableAlarm(1);
+  rtc.clearAlarm(1);
   // This function is called when the alarm goes off
-  Serial.println("Alarm triggered!");
+  // Serial.println("Alarm triggered!");
   // read state from eeprom index 1
   char state = EEPROM.read(1);
   Serial.print("State: ");
@@ -537,6 +551,6 @@ void alarmISR() {
     servo(0);
   }
   else if(state == 'L'){
-    servo(90);
+    servo(1);
   }
 }

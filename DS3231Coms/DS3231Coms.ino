@@ -12,7 +12,7 @@ void setup() {
   Wire.begin();
   rtc.begin();
   // uncomment the following line to set the time and date for the first time
-  // rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+  rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
   pinMode(ALARM_PIN, INPUT_PULLUP);
   Serial.println(""); // buffer
   Serial.print("Current Time: ");
@@ -40,7 +40,7 @@ void alarmISR();
 // main loop
 void loop() {
   // char events[] = {'5', '1', '4', '3', '6', 'L', '0', '1', '0', '0', '5', 'U', '6', '1', '5', '0', '2', 'U', '4', '2', '3', '5', '9', 'L', '5', '1', '4', '1', '8', 'L', NULL};
-  char events[] = {'6', '1', '4', '3', '9', 'L'};
+  char events[] = {'5', '2', '2', '5', '1', 'L'};
   long alarm = nextEvent(events);
   setAlarm(alarm);
   enterSleep();
