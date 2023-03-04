@@ -33,7 +33,7 @@ void setup() {
 
 // function declarations
 long nextEvent(char events[]);
-void setAlarm(char event[]);
+void setAlarm(long timeToEvent);
 void enterSleep();
 void alarmISR();
 

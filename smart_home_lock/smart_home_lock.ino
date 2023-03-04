@@ -98,17 +98,12 @@ void auth(){
     if (BTserial.available()) {
       String input = BTserial.readString();
       delay(30);
-      if (input == "0"){
-        // Serial.println("Exiting...");
-        return;
-      }
-      else if (input == "1123"){
+      if (input == "1123"){
         BTserial.write("\nAuthenticated...\n");
         return;
       }
       else{
         BTserial.write("\nPassword Incorrect");
-        return;
       }
     }
   }
@@ -438,6 +433,16 @@ void scheduleMode(){
     setAlarm(nextEvent(events));
     free(events);
     enterSleep();
+    char state = char(EEPROM.read(1));
+    Serial.print("State: " + String(state));
+    Serial.flush();
+    if(state == 'U'){
+      servo(0);
+    }
+    else if(state == 'L'){
+      servo(1);
+    }
+    delay(60000);
   }
 }
 
@@ -456,6 +461,9 @@ void enterSleep(){
 
   /* The program will continue from here when it wakes */
   
+  // Disable and clear alarm
+  rtc.disableAlarm(1);
+  rtc.clearAlarm(1);
   
 }
 
@@ -538,19 +546,6 @@ void buttonISR(){
 void alarmISR() {
   sleep_disable(); // Disable sleep mode
   detachInterrupt(digitalPinToInterrupt(ALARM_PIN)); // Detach the interrupt to stop it firing
-  // Disable and clear alarm
-  rtc.disableAlarm(1);
-  rtc.clearAlarm(1);
-  // This function is called when the alarm goes off
   // Serial.println("Alarm triggered!");
   // read state from eeprom index 1
-  char state = EEPROM.read(1);
-  Serial.print("State: ");
-  Serial.println(state);
-  if(state == 'U'){
-    servo(0);
-  }
-  else if(state == 'L'){
-    servo(1);
-  }
 }
