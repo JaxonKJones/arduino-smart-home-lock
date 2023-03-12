@@ -5,7 +5,7 @@
 
 RTC_DS3231 rtc;
 
-#define ALARM_PIN 3
+#define ALARM_PIN 2
 
 void setup() {
   Serial.begin(9600);
@@ -40,7 +40,7 @@ void alarmISR();
 // main loop
 void loop() {
   // char events[] = {'5', '1', '4', '3', '6', 'L', '0', '1', '0', '0', '5', 'U', '6', '1', '5', '0', '2', 'U', '4', '2', '3', '5', '9', 'L', '5', '1', '4', '1', '8', 'L', NULL};
-  char events[] = {'5', '2', '2', '5', '1', 'L'};
+  char events[] = {'3', '1', '7', '5', '4', 'L'};
   long alarm = nextEvent(events);
   setAlarm(alarm);
   enterSleep();

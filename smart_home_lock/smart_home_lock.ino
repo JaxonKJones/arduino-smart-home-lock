@@ -9,13 +9,16 @@
 RTC_DS3231 rtc;
 Servo lock;
 
-#define STATE_PIN 5  // set state pin to pin 4
-#define EN_PIN 4  // set enable pin to pin 5
-#define BUTTON_PIN 2  // set button pin to pin 2
-#define ALARM_PIN 3 // interrupt pin from DS3231
+#define STATE_PIN 5  // set state pin to pin 5
+#define EN_PIN 4  // set enable pin to pin 4
+#define BUTTON_PIN 3  // set button pin to pin 3
+volatile bool fromButton = false;
+volatile uint32_t buttonState = 0;
+#define ALARM_PIN 2 // interrupt pin from DS3231
+#define BLUETOOTH_MOS 8 // mosfet for hc-05
 #define SERVO 9 // pwm pin for servo
-#define MOS 12 // servo enable pin
-SoftwareSerial BTserial(6, 7); // RX | TX
+#define SERVO_MOS 11 // servo enable pin
+SoftwareSerial BTserial(7, 6); // RX | TX
 
 // function declarations
 void auth();
@@ -40,6 +43,7 @@ void setup() {
   // Serial Settings
   Serial.begin(9600);
   BTserial.begin(9600);
+  Serial.println("Starting...");
 
   //rtc config
   Wire.begin();
@@ -57,11 +61,18 @@ void setup() {
 
   //pin config
   pinMode(STATE_PIN, INPUT);
-  pinMode(BUTTON_PIN, INPUT); // -- CHANGE TO BE INTERRUPT
+  pinMode(BUTTON_PIN, INPUT);
+  pinMode(BLUETOOTH_MOS, OUTPUT);
+  digitalWrite(BLUETOOTH_MOS, HIGH);
   pinMode(EN_PIN, OUTPUT);
   digitalWrite(EN_PIN, LOW);
-  pinMode(MOS, OUTPUT);
-  digitalWrite(MOS, LOW);
+  pinMode(SERVO_MOS, OUTPUT);
+  digitalWrite(SERVO_MOS, LOW);
+
+  // test(); //TESTING....
+
+
+
   if(digitalRead(STATE_PIN) == LOW){
     pair();
   }
@@ -89,6 +100,15 @@ void loop() {
   }
 }
 
+void test(){
+  Serial.println("Ready...");
+  while(true){
+    // BTserial.write("\Testing...\n");
+    Serial.println("Testing...");
+    attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), buttonISR, FALLING);
+    delay(10000);
+  }
+}
 
 // function definitions
 void auth(){
@@ -428,21 +448,38 @@ void bluetoothMode(){
 void scheduleMode(){
   BTserial.write("\n--Schedule Mode Active--\n");
   BTserial.write("Bluetooth will disactivate but can be awoken using the on system switch...\n");
+  digitalWrite(BLUETOOTH_MOS, LOW);
   while(true){
     char* events = load(false);
     setAlarm(nextEvent(events));
     free(events);
     enterSleep();
-    char state = char(EEPROM.read(1));
-    Serial.print("State: " + String(state));
-    Serial.flush();
-    if(state == 'U'){
-      servo(0);
+    //determin if alarm or button interrupt woke up
+    if(fromButton == true){
+    //interrupt came from alarm
+      char state = char(EEPROM.read(1));
+      Serial.print("State: " + String(state));
+      Serial.flush();
+      if(state == 'U'){
+        servo(0);
+      }
+      else if(state == 'L'){
+        servo(1);
+      }
+      fromButton = false;
+      delay(60000);
     }
-    else if(state == 'L'){
-      servo(1);
+    else{
+      //interrupt came from button
+      if(buttonState == 0){
+        servo(0);
+      }
+      else{
+        servo(1);
+      }
+      fromButton = false;
+      delay(1000);
     }
-    delay(60000);
   }
 }
 
@@ -454,6 +491,7 @@ void enterSleep(){
   
   noInterrupts();                       // Disable interrupts
   attachInterrupt(digitalPinToInterrupt(ALARM_PIN), alarmISR, LOW);
+  attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), buttonISR, FALLING);
   // Serial.println("Going to sleep!");
   // Serial.flush(); 
   interrupts();                         // Allow interrupts again
@@ -491,8 +529,9 @@ void dev(){
         set_rtc();
       }
       else if(input == "4"){
-        for (int i = 0 ; i < EEPROM.length() ; i++) {
-          EEPROM.write(i, 0);
+        EEPROM.write(0, 0);
+        for (int i = 1 ; i < EEPROM.length() ; i++) {
+          EEPROM.write(i, NULL);
         }
         BTserial.write("\nEEPROM Reset\n");
       }
@@ -507,30 +546,38 @@ void dev(){
 
 void servo(int state){
   if(state == 0){
-    digitalWrite(MOS, HIGH);
+    //unlock door
+    digitalWrite(SERVO_MOS, HIGH);
     delay(50);
-    lock.write(0);
+    lock.write(120);
     delay(500);
-    digitalWrite(MOS, LOW);
+    digitalWrite(SERVO_MOS, LOW);
   }
   else if(state == 1){
-    digitalWrite(MOS, HIGH);
+    //lock door
+    digitalWrite(SERVO_MOS, HIGH);
     delay(50);
-    lock.write(90);
+    lock.write(30);
     delay(500);
-    digitalWrite(MOS, LOW);
+    digitalWrite(SERVO_MOS, LOW);
   }
 }
 
 void set_rtc(){
-  BTserial.write("--Set Time & Day (d:hh:mm)--");
+  BTserial.write("--Set Date Time (yyyy:MM:dd:hh:mm:ss)--");
   while(true){
     if (BTserial.available()) {
       String time = BTserial.readString();
-      Serial.println(time);
-      int day = time.substring(0, 1).toInt();
-      int hour = time.substring(2, 4).toInt();
-      int minute = time.substring(5, 7).toInt();
+      // Serial.println(time);
+      delay(30);
+      int year = time.substring(0, 4).toInt();
+      int month = time.substring(5, 7).toInt();
+      int day = time.substring(8, 10).toInt();
+      int hour = time.substring(11,13).toInt();
+      int minute = time.substring(14,16).toInt();
+      int second = time.substring(17,19).toInt();
+      // Serial.println("Year: " + String(year) + " Month: " + String(month) + " Day: " + String(day) + " Hour: " + String(hour) + " Minute: " + String(minute) + " Second: " + String(second));
+      rtc.adjust(DateTime(year, month, day, hour, minute, second));
       break;
     }
   }
@@ -539,8 +586,17 @@ void set_rtc(){
 
 // Interrupt Service Routines
 void buttonISR(){
-  // exit to main menu
-  Serial.println("Button Pressed");
+  sleep_disable(); // Disable sleep mode
+  detachInterrupt(digitalPinToInterrupt(BUTTON_PIN)); // Detach the interrupt to stop it firing
+  fromButton = true;
+  Serial.println("Button pressed!");
+  if (buttonState == 0){
+    buttonState = 1;
+  }
+  else{
+    buttonState = 0;
+  }
+  Serial.println("Button State: " + String(buttonState));
 }
 
 void alarmISR() {
