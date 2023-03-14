@@ -108,7 +108,7 @@ void loop() {
 void test(){
   Serial.println("Ready...");
   while(true){
-    // BTserial.write("\Testing...\n");
+    // BTserial.print(F(\Testing...\n"));
     Serial.println("Testing...");
     attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), buttonISR, FALLING);
     delay(10000);
@@ -117,18 +117,18 @@ void test(){
 
 // function definitions
 void auth(){
-  BTserial.write("\n--Jones Home--\n");
-  BTserial.write("Enter Password: ");
+  BTserial.print(F("\n-Jones Home-"));
+  BTserial.print(F("\nEnter Password: "));
   while(true){
     if (BTserial.available()) {
       String input = BTserial.readString();
       delay(30);
       if (input == "31"){
-        BTserial.write("\nAuthenticated...");
+        BTserial.print(F("\nAuthenticated..."));
         return;
       }
       else{
-        BTserial.write("\nPassword Incorrect");
+        BTserial.print(F("\nPassword Incorrect"));
       }
     }
   }
@@ -138,7 +138,7 @@ int menu(){
   if(digitalRead(STATE_PIN) == LOW){
     pair();
   }
-  BTserial.write("\n\n---Main Menu---\n1: Scheduler\n2: Schedule Mode\n3: Bluetooth Mode\n4: Configure Bluetooth Limited\n5: Dev");
+  BTserial.print(F("\n\n-Main Menu-\n1: Scheduler\n2: Schedule Mode\n3: Bluetooth Mode\n4: Configure Bluetooth Limited\n5: Dev"));
   while(true){
     if (BTserial.available()) {
       char command = BTserial.read();
@@ -169,17 +169,17 @@ int menu(){
 }
 
 void pair(){
-  Serial.print("Pairing...");
+  Serial.print(F("Pairing..."));
   while(digitalRead(STATE_PIN) == LOW){
-    Serial.print(" ... ");
-    delay(3000);
+    Serial.print(F(" ... "));
+    delay(1000);
   } 
-  Serial.println("Paired!");
+  Serial.println(F("Paired!"));
 }
 
 void scheduler(){  
-  BTserial.write("\n\n--Scheduler--");
-  BTserial.write("\n1:Add  2:Delete  3:See all Schedules   or Exit");
+  BTserial.print(F("\n\n-Scheduler-"));
+  BTserial.print(F("\n1:Add  2:Delete  3:See all Schedules   or Exit"));
   // format is d:hh:mm - ex: 1:12:00 is Sunday at 12:00
   while(true){
     if (BTserial.available()) {
@@ -191,7 +191,7 @@ void scheduler(){
       }
       else if (input == "1"){
         //Add schedule
-        BTserial.write("\nEnter Schedule: (d-hh:mm-U/L) or Exit");
+        BTserial.print(F("\nEnter Schedule: (d-hh:mm-U/L) or Exit"));
         while(true){
           if (BTserial.available()){
             String input = BTserial.readString();
@@ -214,7 +214,7 @@ void scheduler(){
                 Serial.println(String(day) + "-" + String(h1) + String(h2) + ":" + String(m1) + String(m2) + "-" + String(state));
                 //save schedule to EEPROM
                 save(day, h1, h2, m1, m2, state);
-                BTserial.write("\nSchedule Saved!");
+                BTserial.print(F("\nSaved!"));
                 break;
               }
             }
@@ -225,7 +225,7 @@ void scheduler(){
       else if(input == "2"){
         //Send schedules to BTserial
         load(true);
-        BTserial.write("\nEnter Schedule index to Delete or Exit");
+        BTserial.print(F("\nEnter Schedule index to Delete or Exit"));
         while(true){
           if (BTserial.available()){
             String input = BTserial.readString();
@@ -243,7 +243,7 @@ void scheduler(){
                 Serial.println(String(index));
                 //save schedule to EEPROM
                 del(index-1);
-                BTserial.write("\nSchedule Deleted!\n");
+                BTserial.print(F("\nSchedule Deleted!\n"));
                 break;
               }
             }
@@ -268,7 +268,7 @@ void scheduler(){
 
 void save(char day, char h1, char h2, char m1, char m2, char state){
   //check eeprom to see where the next available slot is
-  int address = 2; // index 1 reserved for number of schedules, index 2 reserved for next state (U/L)
+  int address = 2; // index 0 reserved for number of schedules, index 1 reserved for next state (U/L)
   int saves = EEPROM.read(0);
   int i = saves*6+address;
   //save day
@@ -321,12 +321,12 @@ char* load(bool print){
   if (print){
     // Serial.println("Schedules: " + String(sched));
     // Serial.println("Day:  HH:  MM:  State:");
-    BTserial.write(("\nSchedules: " + String(sched) + "\n").c_str());
-    BTserial.write(("#:   Day:    HH:   MM:   State:"));
+    BTserial.print(("\nSchedules: " + String(sched) + "\n").c_str());
+    BTserial.print(F("#:   Day:    HH:   MM:   State:"));
     //print out all schedules from eeprom
     int address = 2;
     for(int i = 0; i < sched; i++){
-      BTserial.write(("\n" + String(i+1) + ":     "+ String(char(EEPROM.read(address))) + "     " + String(char(EEPROM.read(address + 1))) + String(char(EEPROM.read(address + 2))) + "     " + String(char(EEPROM.read(address + 3))) + String(char(EEPROM.read(address + 4))) + "       " + String(char(EEPROM.read(address + 5))) + "").c_str());
+      BTserial.print(("\n" + String(i+1) + ":     "+ String(char(EEPROM.read(address))) + "     " + String(char(EEPROM.read(address + 1))) + String(char(EEPROM.read(address + 2))) + "     " + String(char(EEPROM.read(address + 3))) + String(char(EEPROM.read(address + 4))) + "       " + String(char(EEPROM.read(address + 5))) + "").c_str());
       address += 6;
       }
     return NULL;
@@ -353,7 +353,7 @@ long nextEvent(char events[]) {
     numEvents++;
   }
   numEvents = numEvents/6;
-  Serial.print("Number of Events: ");
+  Serial.print(F("Number of Events: "));
   Serial.println(numEvents);
   DateTime now = rtc.now();// get current date/time from RTC module
   long currentDOW = now.dayOfTheWeek();
@@ -392,7 +392,7 @@ long nextEvent(char events[]) {
       // The event is in the future today
       eventTime = (eventHour - currentHour) * 3600L + (eventMinute - currentMinute) * 60L;
     }
-    // Serial.print("Time to Event: ");
+    // Serial.print(F("Time to Event: "));
     // Serial.println(eventTime);
 
     if(eventTime == 0){
@@ -432,35 +432,35 @@ void bluetoothMode(){
   if(digitalRead(STATE_PIN) == LOW){
     pair();
   }
-  BTserial.write("\n\n--Bluetooth Mode Active--");
-  BTserial.write("\n1: Lock Door\n2: Unlock Door\n or Exit to Main Menu");
+  BTserial.print(F("\n\n-Bluetooth Mode-"));
+  BTserial.print(F("\n1: Lock Door\n2: Unlock Door\n or Exit"));
   while(true){
     if (BTserial.available()) {
       char command = BTserial.read();
       if (command == '1') {
         //lock door
         servo(1);
-        BTserial.write("\nDoor locked");
+        BTserial.print(F("\nLocked!"));
       }
       else if (command == '2') {
         //unlock door
         servo(0);
-        BTserial.write("\nDoor Unlocked");
+        BTserial.print(F("\nUnlocked!"));
       }
       else if (command == '0') {
         //exit to main menu
         break;        
       }
       else{
-        // BTserial.write("\nCommand not recognized...");
+        // BTserial.print(F("\nCommand not recognized..."));
       }
     }
   }
 }
 
 void bluetoothLimited(){
-  BTserial.write("\n\n--Configure Bluetooth Limited Mode--");
-  BTserial.write("\n1: Set Daily Schedule or Exit to Main Menu");
+  BTserial.print(F("\n\n-Config Bluetooth Limited-"));
+  BTserial.print(F("\n1: Set Daily Schedule or Exit to Main Menu"));
   while(true){
     if (BTserial.available()) {
       char command = BTserial.read();
@@ -470,16 +470,16 @@ void bluetoothLimited(){
       }
       else if (command == '1') {
         //set hours for bluetooth module to be on each day 
-        BTserial.write("\n--Format HH:MM HH:MM--"); //start hour and minute, end hour and minute
-        BTserial.write("\n--Example 08:00 20:00--"); //start hour and minute, end hour and minute        
+        BTserial.print(F("\n-Format HH:MM HH:MM-")); //start hour and minute, end hour and minute
+        BTserial.print(F("\n-Example 08:00 20:00-")); //start hour and minute, end hour and minute        
       }
     }
   }
 }
 
 void scheduleMode(){
-  BTserial.write("\n\n--Schedule Mode Active--");
-  BTserial.write("\nBluetooth will disactivate but can be awoken using the on system switch...");
+  BTserial.print(F("\n\n-Schedule Mode Active-"));
+  BTserial.print(F("\nBluetooth will disactivate but can be awoken using the on system switch..."));
   delay(200); //wait for bluetooth to send message
   digitalWrite(BLUETOOTH_MOS, LOW); //turn off bluetooth module
   while(true){
@@ -539,8 +539,8 @@ void enterSleep(){
 }
 
 void dev(){
-  BTserial.write("\n\n--DEBUG--");
-  BTserial.write("\n1: Set RTC\n2: RTC Info\n3:Reset EEPROM\nOr Exit");
+  BTserial.print(F("\n\n-DEBUG-"));
+  BTserial.print(F("\n1: Set RTC\n2: RTC Info\n3:Reset EEPROM\nOr Exit"));
   while(true){
     if (BTserial.available()) {
       char input = BTserial.read();
@@ -556,15 +556,15 @@ void dev(){
         DateTime now = rtc.now();
         // float temperature = rtc.getTemperature();
         // Serial.println("Date: " + String(now.year()) + "/" + String(now.month()) + "/" + String(now.day()) + "  " + String(now.hour()) + ":" + String(now.minute()) + ":" + String(now.second()) + ", Temperature: " + String(temperature) + " °C");
-        // BTserial.write(("\nDate: " + String(now.year()) + "/" + String(now.month()) + "/" + String(now.day()) + "  " + String(now.hour()) + ":" + String(now.minute()) + ":" + String(now.second()) + ", Temperature: " + String(temperature) + " °C").c_str());
-        BTserial.write(("\n" + String(now.day()) + "  " + String(now.hour()) + ":" + String(now.minute())).c_str());
+        // BTserial.print(("\nDate: " + String(now.year()) + "/" + String(now.month()) + "/" + String(now.day()) + "  " + String(now.hour()) + ":" + String(now.minute()) + ":" + String(now.second()) + ", Temperature: " + String(temperature) + " °C").c_str());
+        BTserial.print(("\n" + String(now.day()) + "  " + String(now.hour()) + ":" + String(now.minute())).c_str());
       }
       else if(input == '3'){
         EEPROM.write(0, 0);
         for (int i = 1 ; i < EEPROM.length() ; i++) {
           EEPROM.write(i, NULL);
         }
-        BTserial.write("\nEEPROM Reset\n");
+        BTserial.print(F("\nEEPROM Reset\n"));
       }
       else if(input == '4'){
         for (int i = 0 ; i < EEPROM.length() ; i++) {
@@ -595,7 +595,7 @@ void servo(int state){
 }
 
 void set_rtc(){
-  BTserial.write("--Set Date Time (yyyy:MM:dd:hh:mm:ss)--");
+  BTserial.print(F("-Set Date Time (yyyy:MM:dd:hh:mm:ss)-"));
   while(true){
     if (BTserial.available()) {
       String time = BTserial.readString();
