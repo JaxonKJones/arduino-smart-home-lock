@@ -40,10 +40,11 @@ void alarmISR();
 // main loop
 void loop() {
   // char events[] = {'5', '1', '4', '3', '6', 'L', '0', '1', '0', '0', '5', 'U', '6', '1', '5', '0', '2', 'U', '4', '2', '3', '5', '9', 'L', '5', '1', '4', '1', '8', 'L', NULL};
-  char events[] = {'3', '1', '7', '5', '4', 'L'};
-  long alarm = nextEvent(events);
-  setAlarm(alarm);
-  enterSleep();
+  // char events[] = {'3', '1', '7', '5', '4', 'L'};
+  // long alarm = nextEvent(events);
+  // setAlarm(alarm);
+  // enterSleep();
+  DOW();
   delay(100000);
 
   
@@ -157,63 +158,63 @@ void alarmISR() {
 }
 
 
-// void getInput(){
-//   if (Serial.available() > 0) {
-//     String command = Serial.readStringUntil('\n');
-//     if (command == "read") {
-//       DateTime now = rtc.now();
-//       float temperature = rtc.getTemperature();
-//       Serial.print("Date: ");
-//       Serial.print(now.year(), DEC);
-//       Serial.print('/');
-//       Serial.print(now.month(), DEC);
-//       Serial.print('/');
-//       Serial.print(now.day(), DEC);
-//       Serial.print(" ");
-//       Serial.print(now.hour(), DEC);
-//       Serial.print(':');
-//       Serial.print(now.minute(), DEC);
-//       Serial.print(':');
-//       Serial.print(now.second(), DEC);
-//       Serial.print(", Temperature: ");
-//       Serial.print(temperature);
-//       Serial.println(" °C");
-//     }
-//   }
-//   delay(1000);
-// }
+void getInput(){
+  if (Serial.available() > 0) {
+    String command = Serial.readStringUntil('\n');
+    if (command == "read") {
+      DateTime now = rtc.now();
+      float temperature = rtc.getTemperature();
+      Serial.print("Date: ");
+      Serial.print(now.year(), DEC);
+      Serial.print('/');
+      Serial.print(now.month(), DEC);
+      Serial.print('/');
+      Serial.print(now.day(), DEC);
+      Serial.print(" ");
+      Serial.print(now.hour(), DEC);
+      Serial.print(':');
+      Serial.print(now.minute(), DEC);
+      Serial.print(':');
+      Serial.print(now.second(), DEC);
+      Serial.print(", Temperature: ");
+      Serial.print(temperature);
+      Serial.println(" °C");
+    }
+  }
+  delay(1000);
+}
 
-// void DOW() {
-//   DateTime now = rtc.now();      // get current date/time from RTC module
-//   int dayOfWeek = now.dayOfTheWeek();  // get day of the week (0=Sunday, 1=Monday, etc.)
-//   // Print day of the week to serial monitor
-//   Serial.print("Today is ");
-//   switch (dayOfWeek) {
-//     case 0:
-//       Serial.println("Sunday");
-//       break;
-//     case 1:
-//       Serial.println("Monday");
-//       break;
-//     case 2:
-//       Serial.println("Tuesday");
-//       break;
-//     case 3:
-//       Serial.println("Wednesday");
-//       break;
-//     case 4:
-//       Serial.println("Thursday");
-//       break;
-//     case 5:
-//       Serial.println("Friday");
-//       break;
-//     case 6:
-//       Serial.println("Saturday");
-//       break;
-//     default:
-//       Serial.println("Invalid day of the week");
-//       break;
-//   }
-//   delay(1000);  // wait for 1 second before repeating loop
-// }
+void DOW() {
+  DateTime now = rtc.now();      // get current date/time from RTC module
+  int dayOfWeek = now.dayOfTheWeek();  // get day of the week (0=Sunday, 1=Monday, etc.)
+  // Print day of the week to serial monitor
+  Serial.print("Today is ");
+  switch (dayOfWeek) {
+    case 0:
+      Serial.println("Sunday");
+      break;
+    case 1:
+      Serial.println("Monday");
+      break;
+    case 2:
+      Serial.println("Tuesday");
+      break;
+    case 3:
+      Serial.println("Wednesday");
+      break;
+    case 4:
+      Serial.println("Thursday");
+      break;
+    case 5:
+      Serial.println("Friday");
+      break;
+    case 6:
+      Serial.println("Saturday");
+      break;
+    default:
+      Serial.println("Invalid day of the week");
+      break;
+  }
+  delay(1000);  // wait for 1 second before repeating loop
+}
 

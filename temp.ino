@@ -13,7 +13,7 @@ Servo lock;
 #define EN_PIN 4  // set enable pin to pin 4
 #define BUTTON_PIN 3  // set button pin to pin 3
 volatile bool fromButton = false;
-volatile int buttonState = 0;
+volatile uint32_t buttonState = 0;
 #define ALARM_PIN 2 // interrupt pin from DS3231
 #define BLUETOOTH_MOS 8 // mosfet for hc-05
 #define SERVO 9 // pwm pin for servo
@@ -44,7 +44,7 @@ void setup() {
   // Serial Settings
   Serial.begin(9600);
   BTserial.begin(9600);
-  // Serial.println("Starting...");
+  Serial.println("Starting...");
 
   //rtc config
   Wire.begin();
@@ -123,7 +123,7 @@ void auth(){
     if (BTserial.available()) {
       String input = BTserial.readString();
       delay(30);
-      if (input == "31"){
+      if (input == "1123"){
         BTserial.write("\nAuthenticated...");
         return;
       }
@@ -273,25 +273,25 @@ void save(char day, char h1, char h2, char m1, char m2, char state){
   int i = saves*6+address;
   //save day
   EEPROM.write(i, day);
-  // Serial.println("var saved: " + String(day) + " to address: " + String(i) + " in eeprom");
+  Serial.println("var saved: " + String(day) + " to address: " + String(i) + " in eeprom");
   //save h1
   EEPROM.write(i + 1, h1);
-  // Serial.println("var saved: " + String(h1) + " to address: " + String(i + 1) + " in eeprom");  
+  Serial.println("var saved: " + String(h1) + " to address: " + String(i + 1) + " in eeprom");  
   //save h2
   EEPROM.write(i + 2, h2);
-  // Serial.println("var saved: " + String(h2) + " to address: " + String(i + 2) + " in eeprom");
+  Serial.println("var saved: " + String(h2) + " to address: " + String(i + 2) + " in eeprom");
   //save m1
   EEPROM.write(i + 3, m1);
-  // Serial.println("var saved: " + String(m1) + " to address: " + String(i + 3) + " in eeprom");
+  Serial.println("var saved: " + String(m1) + " to address: " + String(i + 3) + " in eeprom");
   //save m2
   EEPROM.write(i + 4, m2);
-  // Serial.println("var saved: " + String(m2) + " to address: " + String(i + 4) + " in eeprom");
+  Serial.println("var saved: " + String(m2) + " to address: " + String(i + 4) + " in eeprom");
   //save state
   EEPROM.write(i + 5, state);
-  // Serial.println("var saved: " + String(state) + " to address: " + String(i + 5) + " in eeprom");
+  Serial.println("var saved: " + String(state) + " to address: " + String(i + 5) + " in eeprom");
   //increment number of schedules
   EEPROM.write(0, saves + 1);
-  // Serial.println("var saved: " + String(saves + 1) + " to address: " + String(0) + " in eeprom");
+  Serial.println("var saved: " + String(saves + 1) + " to address: " + String(0) + " in eeprom");
 
 }
 
@@ -540,33 +540,35 @@ void enterSleep(){
 
 void dev(){
   BTserial.write("\n\n--DEBUG--");
-  BTserial.write("\n1: Set RTC\n2: RTC Info\n3:Reset EEPROM\nOr Exit");
+  BTserial.write("\n1: States\n2: RTC Info\n3: Set RTC\n4: Reset EEPROM\nOr Exit");
   while(true){
     if (BTserial.available()) {
-      char input = BTserial.read();
+      String input = BTserial.readString();
       delay(30);
-      if (input == '0'){
+      if (input == "0"){
         // Serial.println("Exiting...");
         break;
       }
-      else if (input == '1'){
+      else if (input == "1"){
+        BTserial.write("\nStates here...");
+      }
+      else if(input == "2"){
+        DateTime now = rtc.now();
+        float temperature = rtc.getTemperature();
+        // Serial.println("Date: " + String(now.year()) + "/" + String(now.month()) + "/" + String(now.day()) + "  " + String(now.hour()) + ":" + String(now.minute()) + ":" + String(now.second()) + ", Temperature: " + String(temperature) + " °C");
+        BTserial.write(("\nDate: " + String(now.year()) + "/" + String(now.month()) + "/" + String(now.day()) + "  " + String(now.hour()) + ":" + String(now.minute()) + ":" + String(now.second()) + ", Temperature: " + String(temperature) + " °C").c_str());
+      }
+      else if(input == "3"){
         set_rtc();
       }
-      else if(input == '2'){
-        DateTime now = rtc.now();
-        // float temperature = rtc.getTemperature();
-        // Serial.println("Date: " + String(now.year()) + "/" + String(now.month()) + "/" + String(now.day()) + "  " + String(now.hour()) + ":" + String(now.minute()) + ":" + String(now.second()) + ", Temperature: " + String(temperature) + " °C");
-        // BTserial.write(("\nDate: " + String(now.year()) + "/" + String(now.month()) + "/" + String(now.day()) + "  " + String(now.hour()) + ":" + String(now.minute()) + ":" + String(now.second()) + ", Temperature: " + String(temperature) + " °C").c_str());
-        BTserial.write(("\n" + String(now.day()) + "  " + String(now.hour()) + ":" + String(now.minute())).c_str());
-      }
-      else if(input == '3'){
+      else if(input == "4"){
         EEPROM.write(0, 0);
         for (int i = 1 ; i < EEPROM.length() ; i++) {
           EEPROM.write(i, NULL);
         }
         BTserial.write("\nEEPROM Reset\n");
       }
-      else if(input == '4'){
+      else if(input == "5"){
         for (int i = 0 ; i < EEPROM.length() ; i++) {
           Serial.print(String(char(EEPROM.read(i))) + " ");
         }
@@ -617,6 +619,7 @@ void set_rtc(){
 
 // Interrupt Service Routines
 void buttonISR(){
+  // only allow interrupt to trigger maximum once per second
   sleep_disable(); // Disable sleep mode
   detachInterrupt(digitalPinToInterrupt(BUTTON_PIN)); // Detach the interrupt to stop it firing
   fromButton = true;
