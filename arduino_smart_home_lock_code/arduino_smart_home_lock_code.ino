@@ -21,6 +21,9 @@ volatile long buttonCalls = 0;
 #define SERVO_MOS 11 // servo enable pin
 SoftwareSerial BTserial(7, 6); // RX | TX
 
+// User Variables
+#define password "31"
+
 // function declarations
 void auth();
 int menu();
@@ -118,13 +121,13 @@ void test(){
 
 // function definitions
 void auth(){
-  BTserial.print(F("\n-Jones Home-"));
+  BTserial.print(F("\n-Home Lock-"));
   BTserial.print(F("\nEnter Password: "));
   while(true){
     if (BTserial.available()) {
       String input = BTserial.readString();
       delay(30);
-      if (input == "31"){
+      if (input == password){
         BTserial.print(F("\nAuthenticated..."));
         return;
       }
