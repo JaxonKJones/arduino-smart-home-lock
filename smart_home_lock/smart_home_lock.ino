@@ -14,6 +14,7 @@ Servo lock;
 #define BUTTON_PIN 3  // set button pin to pin 3
 volatile bool fromButton = false;
 volatile int buttonState = 0;
+volatile long buttonCalls = 0;
 #define ALARM_PIN 2 // interrupt pin from DS3231
 #define BLUETOOTH_MOS 8 // mosfet for hc-05
 #define SERVO 9 // pwm pin for servo
@@ -62,7 +63,7 @@ void setup() {
 
   //pin config
   pinMode(STATE_PIN, INPUT);
-  pinMode(BUTTON_PIN, INPUT);
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
   pinMode(BLUETOOTH_MOS, OUTPUT);
   digitalWrite(BLUETOOTH_MOS, HIGH);
   pinMode(EN_PIN, OUTPUT);
@@ -480,15 +481,15 @@ void bluetoothLimited(){
 void scheduleMode(){
   BTserial.print(F("\n\n-Schedule Mode Active-"));
   BTserial.print(F("\nBluetooth will disactivate but can be awoken using the on system switch..."));
-  delay(200); //wait for bluetooth to send message
+  delay(2000); //wait for bluetooth to send message
   digitalWrite(BLUETOOTH_MOS, LOW); //turn off bluetooth module
   while(true){
     char* events = load(false);
     setAlarm(nextEvent(events));
     free(events);
     enterSleep();
-    //determin if alarm or button interrupt woke up
-    if(fromButton == true){
+    //determine if alarm or button interrupt woke up
+    if(fromButton == false){
     //interrupt came from alarm
       char state = char(EEPROM.read(1));
       Serial.print("State: " + String(state));
@@ -500,18 +501,19 @@ void scheduleMode(){
         servo(1);
       }
       fromButton = false;
-      delay(1000);
+      delay(4000);
     }
     else{
-      //interrupt came from button
-      if(buttonState == 0){
+      if (buttonState == 0){
+        buttonState = 1;
         servo(0);
       }
       else{
+        buttonState = 0;
         servo(1);
       }
       fromButton = false;
-      delay(1000);
+      delay(4000);
     }
   }
 }
@@ -580,7 +582,7 @@ void servo(int state){
     //unlock door
     digitalWrite(SERVO_MOS, HIGH);
     delay(50);
-    lock.write(120);
+    lock.write(140);
     delay(500);
     digitalWrite(SERVO_MOS, LOW);
   }
@@ -617,17 +619,14 @@ void set_rtc(){
 
 // Interrupt Service Routines
 void buttonISR(){
+  buttonCalls += 1;
   sleep_disable(); // Disable sleep mode
   detachInterrupt(digitalPinToInterrupt(BUTTON_PIN)); // Detach the interrupt to stop it firing
   fromButton = true;
-  Serial.println("Button pressed!");
-  if (buttonState == 0){
-    buttonState = 1;
-  }
-  else{
-    buttonState = 0;
-  }
-  Serial.println("Button State: " + String(buttonState));
+  // Serial.println("Button pressed!");
+  
+  // Serial.println("Button State: " + String(buttonState));
+  // Serial.println(buttonCalls);
 }
 
 void alarmISR() {
