@@ -22,12 +22,12 @@ volatile long buttonCalls = 0;
 SoftwareSerial BTserial(7, 6); // RX | TX
 
 // User Variables
-#define password "31"
+#define password "11235"
 
 // function declarations
 void auth();
 int menu();
-void pair();
+void pair(bool checkTimeOut);
 void scheduler();
 void save(char day, char h1, char h2, char m1, char m2, char state);
 void del(int index);
@@ -40,6 +40,7 @@ void scheduleMode();
 void enterSleep();
 void dev();
 void servo(int state);
+void vacationMode();
 void buttonISR();
 void alarmISR();
 
@@ -53,7 +54,7 @@ void setup() {
   //rtc config
   Wire.begin();
   rtc.begin();
-  rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+  // rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
   pinMode(ALARM_PIN, INPUT_PULLUP);
   rtc.disableAlarm(1);
   rtc.disableAlarm(2);
@@ -79,7 +80,7 @@ void setup() {
 
 
   if(digitalRead(STATE_PIN) == LOW){
-    pair();
+    pair(true);
   }
   auth();
 }
@@ -104,6 +105,10 @@ void loop() {
     bluetoothLimited();
   }
   else if (mode == '5'){
+    // run vacation mode
+    vacationMode();
+  }
+  else if (mode == '6'){
     // run dev mode
     dev();
   }
@@ -123,6 +128,8 @@ void test(){
 void auth(){
   BTserial.print(F("\n-Home Lock-"));
   BTserial.print(F("\nEnter Password: "));
+  long startTime = millis();
+  // if user takes longer than 60s to enter password, it will go to scheduleMode
   while(true){
     if (BTserial.available()) {
       String input = BTserial.readString();
@@ -134,15 +141,20 @@ void auth(){
       else{
         BTserial.print(F("\nPassword Incorrect"));
       }
+      // check to see if it has been 60s
+      if (millis() - startTime > 60000){
+        BTserial.print(F("\nTimed Out..."));
+        scheduleMode();
+      }
     }
   }
 }
 
 int menu(){
   if(digitalRead(STATE_PIN) == LOW){
-    pair();
+    pair(false);
   }
-  BTserial.print(F("\n\n-Main Menu-\n1: Scheduler\n2: Schedule Mode\n3: Bluetooth Mode\n4: Configure Bluetooth Limited\n5: Dev"));
+  BTserial.print(F("\n\n-Main Menu-\n1: Scheduler\n2: Schedule Mode\n3: Bluetooth Mode\n4: Configure Bluetooth Limited\n5: Vacation Mode\n6: Dev"));
   while(true){
     if (BTserial.available()) {
       char command = BTserial.read();
@@ -164,19 +176,37 @@ int menu(){
       else if (command == '5') {
         return command;
       }
+      else if (command == '6') {
+        return command;
+      }
+      else if (command == '7') {
+        return command;
+      }
+      else if (command == '8') {
+        return command;
+      }
+      else if (command == '9') {
+        return command;
+      }
     }
     if (digitalRead(STATE_PIN) == LOW){
-      pair();
+      pair(false);
     }
   }
     
 }
 
-void pair(){
+void pair(bool checkTimeOut){
   Serial.print(F("Pairing..."));
+  long startTime = millis();
   while(digitalRead(STATE_PIN) == LOW){
     Serial.print(F(" ... "));
     delay(1000);
+    if (checkTimeOut && millis() - startTime > 60000){
+      Serial.println(F("Timed Out..."));
+      scheduleMode();
+      return;
+    }
   } 
   Serial.println(F("Paired!"));
 }
@@ -265,7 +295,7 @@ void scheduler(){
       
     }
     if(digitalRead(STATE_PIN) == LOW){
-      pair();
+      pair(false);
     }
   }
 }
@@ -434,7 +464,7 @@ void setAlarm(long timeToEvent) {
 
 void bluetoothMode(){
   if(digitalRead(STATE_PIN) == LOW){
-    pair();
+    pair(false);
   }
   BTserial.print(F("\n\n-Bluetooth Mode-"));
   BTserial.print(F("\n1: Lock Door\n2: Unlock Door\n or Exit"));
@@ -483,11 +513,12 @@ void bluetoothLimited(){
 
 void scheduleMode(){
   BTserial.print(F("\n\n-Schedule Mode Active-"));
-  BTserial.print(F("\nBluetooth will disactivate but can be awoken using the on system switch..."));
+  BTserial.print(F("\nBluetooth will deactivate but can be awoken using the on system switch..."));
   delay(2000); //wait for bluetooth to send message
   digitalWrite(BLUETOOTH_MOS, LOW); //turn off bluetooth module
-  while(true){
-    char* events = load(false);
+  int saves = EEPROM.read(0);
+  while(saves != 0){
+    char* events = load(false);    
     setAlarm(nextEvent(events));
     free(events);
     enterSleep();
@@ -519,6 +550,14 @@ void scheduleMode(){
       delay(4000);
     }
   }
+
+  //Otherwise, no events set - so sleep CPU
+  sleep_enable();                       // Enabling sleep mode
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN);  // Setting the sleep mode, in this case full sleep
+  noInterrupts();                       // Disable interrupts
+  attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), buttonISR, FALLING);
+  interrupts();                         // Allow interrupts again
+  sleep_cpu();
 }
 
 void enterSleep(){
@@ -598,6 +637,40 @@ void servo(int state){
     digitalWrite(SERVO_MOS, LOW);
   }
 }
+
+void vacationMode(){
+  //turn off the bluetooth module and do not look for alarms
+  BTserial.print(F("\n\n-Vacation Mode Active-"));
+  BTserial.print(F("\nBluetooth will deactivate but can be awoken using the on system switch..."));
+  delay(2000); //wait for bluetooth to send message
+  digitalWrite(BLUETOOTH_MOS, LOW); //turn off bluetooth module
+  while(true){
+    //sleep the cpu
+    sleep_enable();                       // Enabling sleep mode
+    set_sleep_mode(SLEEP_MODE_PWR_DOWN);  // Setting the sleep mode, in this case full sleep
+    
+    noInterrupts();                       // Disable interrupts     
+    attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), buttonISR, FALLING);
+    // Serial.println("Going to sleep!");
+    // Serial.flush(); 
+    interrupts();                         // Allow interrupts again
+    sleep_cpu();                          // Enter sleep mode
+    //allow button operation only
+    if(fromButton == true){
+      if (buttonState == 0){
+        buttonState = 1;
+        servo(0);
+      }
+      else{
+        buttonState = 0;
+        servo(1);
+      }
+      fromButton = false;
+      delay(4000);
+    }
+  }
+}
+
 
 void set_rtc(){
   BTserial.print(F("-Set Date Time (yyyy:MM:dd:hh:mm:ss)-"));
