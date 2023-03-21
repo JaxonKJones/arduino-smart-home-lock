@@ -75,10 +75,9 @@ void setup() {
   pinMode(SERVO_MOS, OUTPUT);
   digitalWrite(SERVO_MOS, LOW);
 
-  // test(); //TESTING....
+  test(); //TESTING....
 
-
-
+  //pair if not already connected
   if(digitalRead(STATE_PIN) == LOW){
     pair(true);
   }
@@ -119,7 +118,9 @@ void test(){
   while(true){
     // BTserial.print(F(\Testing...\n"));
     Serial.println("Testing...");
-    attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), buttonISR, FALLING);
+    //test code here.
+    scheduleMode();
+
     delay(10000);
   }
 }
@@ -248,7 +249,6 @@ void scheduler(){
                 Serial.println(String(day) + "-" + String(h1) + String(h2) + ":" + String(m1) + String(m2) + "-" + String(state));
                 //save schedule to EEPROM
                 save(day, h1, h2, m1, m2, state);
-                BTserial.print(F("\nSaved!"));
                 break;
               }
             }
@@ -277,7 +277,6 @@ void scheduler(){
                 Serial.println(String(index));
                 //save schedule to EEPROM
                 del(index-1);
-                BTserial.print(F("\nSchedule Deleted!\n"));
                 break;
               }
             }
@@ -304,29 +303,35 @@ void save(char day, char h1, char h2, char m1, char m2, char state){
   //check eeprom to see where the next available slot is
   int address = 2; // index 0 reserved for number of schedules, index 1 reserved for next state (U/L)
   int saves = EEPROM.read(0);
-  int i = saves*6+address;
-  //save day
-  EEPROM.write(i, day);
-  // Serial.println("var saved: " + String(day) + " to address: " + String(i) + " in eeprom");
-  //save h1
-  EEPROM.write(i + 1, h1);
-  // Serial.println("var saved: " + String(h1) + " to address: " + String(i + 1) + " in eeprom");  
-  //save h2
-  EEPROM.write(i + 2, h2);
-  // Serial.println("var saved: " + String(h2) + " to address: " + String(i + 2) + " in eeprom");
-  //save m1
-  EEPROM.write(i + 3, m1);
-  // Serial.println("var saved: " + String(m1) + " to address: " + String(i + 3) + " in eeprom");
-  //save m2
-  EEPROM.write(i + 4, m2);
-  // Serial.println("var saved: " + String(m2) + " to address: " + String(i + 4) + " in eeprom");
-  //save state
-  EEPROM.write(i + 5, state);
-  // Serial.println("var saved: " + String(state) + " to address: " + String(i + 5) + " in eeprom");
-  //increment number of schedules
-  EEPROM.write(0, saves + 1);
-  // Serial.println("var saved: " + String(saves + 1) + " to address: " + String(0) + " in eeprom");
-
+  if (saves < 80){
+    int i = saves*6+address;
+    //save day
+    EEPROM.write(i, day);
+    // Serial.println("var saved: " + String(day) + " to address: " + String(i) + " in eeprom");
+    //save h1
+    EEPROM.write(i + 1, h1);
+    // Serial.println("var saved: " + String(h1) + " to address: " + String(i + 1) + " in eeprom");  
+    //save h2
+    EEPROM.write(i + 2, h2);
+    // Serial.println("var saved: " + String(h2) + " to address: " + String(i + 2) + " in eeprom");
+    //save m1
+    EEPROM.write(i + 3, m1);
+    // Serial.println("var saved: " + String(m1) + " to address: " + String(i + 3) + " in eeprom");
+    //save m2
+    EEPROM.write(i + 4, m2);
+    // Serial.println("var saved: " + String(m2) + " to address: " + String(i + 4) + " in eeprom");
+    //save state
+    EEPROM.write(i + 5, state);
+    // Serial.println("var saved: " + String(state) + " to address: " + String(i + 5) + " in eeprom");
+    //increment number of schedules
+    EEPROM.write(0, saves + 1);
+    // Serial.println("var saved: " + String(saves + 1) + " to address: " + String(0) + " in eeprom");
+    BTserial.print(F("\nSaved!"));
+  }
+  else{
+    BTserial.print(F("\nError: Max number of schedules reached!"));
+  }
+  
 }
 
 void del(int index){
@@ -346,6 +351,7 @@ void del(int index){
   for(int i = address; i < (saves * 6) + 1; i++){
     EEPROM.write(i, EEPROM.read(i + 6));
   }
+  BTserial.print(F("\nSchedule Deleted!\n"));
 }
 
 char* load(bool print){
@@ -381,7 +387,7 @@ char* load(bool print){
 
 long nextEvent(char events[]) {
   // get length of array
-  Serial.println(events);
+  // Serial.println(events);
   int numEvents = 0;
   for (int i = 0; events[i] != NULL; i++) {
     numEvents++;
@@ -443,7 +449,6 @@ long nextEvent(char events[]) {
     }
     // delay(2000);
   }
-  Serial.println("");
   Serial.println("Next Event: " + nextEvent);
   Serial.println("Time to event: " + String(closestEventTime) + " (" +String(float(closestEventTime)/float(3600L)) +" hours)");
   Serial.println("Next State: " + String(nextState));
@@ -455,7 +460,7 @@ long nextEvent(char events[]) {
 }
 
 void setAlarm(long timeToEvent) {
-  Serial.println("Setting alarm for " + String(timeToEvent) + " seconds from now");
+  Serial.println("Setting alarm for " + String(timeToEvent) + " seconds from now \n");
   Serial.flush();
   DateTime now = rtc.now();
   DateTime nextAlarm = now.unixtime() + timeToEvent;
@@ -514,13 +519,14 @@ void bluetoothLimited(){
 void scheduleMode(){
   BTserial.print(F("\n\n-Schedule Mode Active-"));
   BTserial.print(F("\nBluetooth will deactivate but can be awoken using the on system switch..."));
-  delay(2000); //wait for bluetooth to send message
+  delay(500); //wait for bluetooth to send message
   digitalWrite(BLUETOOTH_MOS, LOW); //turn off bluetooth module
   int saves = EEPROM.read(0);
   while(saves != 0){
     char* events = load(false);    
     setAlarm(nextEvent(events));
     free(events);
+    fromButton = false;
     enterSleep();
     //determine if alarm or button interrupt woke up
     if(fromButton == false){
@@ -530,14 +536,16 @@ void scheduleMode(){
       Serial.flush();
       if(state == 'U'){
         servo(0);
+        buttonState = 0;
       }
       else if(state == 'L'){
         servo(1);
+        buttonState = 1;
       }
-      fromButton = false;
-      delay(4000);
+      // fromButton = false;
+      delay(1000);
     }
-    else{
+    if(fromButton == true){
       if (buttonState == 0){
         buttonState = 1;
         servo(0);
@@ -546,8 +554,8 @@ void scheduleMode(){
         buttonState = 0;
         servo(1);
       }
-      fromButton = false;
-      delay(4000);
+      // fromButton = false;
+      delay(500);
     }
   }
 
@@ -555,7 +563,7 @@ void scheduleMode(){
   sleep_enable();                       // Enabling sleep mode
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);  // Setting the sleep mode, in this case full sleep
   noInterrupts();                       // Disable interrupts
-  attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), buttonISR, FALLING);
+  attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), buttonISR, LOW);
   interrupts();                         // Allow interrupts again
   sleep_cpu();
 }
@@ -568,7 +576,7 @@ void enterSleep(){
   
   noInterrupts();                       // Disable interrupts
   attachInterrupt(digitalPinToInterrupt(ALARM_PIN), alarmISR, LOW);
-  attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), buttonISR, FALLING);
+  attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), buttonISR, LOW);
   // Serial.println("Going to sleep!");
   // Serial.flush(); 
   interrupts();                         // Allow interrupts again
@@ -650,7 +658,7 @@ void vacationMode(){
     set_sleep_mode(SLEEP_MODE_PWR_DOWN);  // Setting the sleep mode, in this case full sleep
     
     noInterrupts();                       // Disable interrupts     
-    attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), buttonISR, FALLING);
+    attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), buttonISR, LOW);
     // Serial.println("Going to sleep!");
     // Serial.flush(); 
     interrupts();                         // Allow interrupts again
@@ -666,11 +674,10 @@ void vacationMode(){
         servo(1);
       }
       fromButton = false;
-      delay(4000);
+      delay(1000);
     }
   }
 }
-
 
 void set_rtc(){
   BTserial.print(F("-Set Date Time (yyyy:MM:dd:hh:mm:ss)-"));
@@ -699,15 +706,10 @@ void buttonISR(){
   sleep_disable(); // Disable sleep mode
   detachInterrupt(digitalPinToInterrupt(BUTTON_PIN)); // Detach the interrupt to stop it firing
   fromButton = true;
-  // Serial.println("Button pressed!");
-  
-  // Serial.println("Button State: " + String(buttonState));
   // Serial.println(buttonCalls);
 }
 
 void alarmISR() {
   sleep_disable(); // Disable sleep mode
   detachInterrupt(digitalPinToInterrupt(ALARM_PIN)); // Detach the interrupt to stop it firing
-  // Serial.println("Alarm triggered!");
-  // read state from eeprom index 1
 }

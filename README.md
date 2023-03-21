@@ -27,7 +27,6 @@ See [Bill of Materials](#bill-of-materials)
 **Battery Life**
 140 day battery life in schedule mode°  
 30 day battery life in Bluetooth limited mode*°  
-All source code, 3D models, and instructions are available via a public Git repository  
 *Based on a 3500 mAh 18650 battery
 °Based on a 12 hour availability
 
@@ -40,7 +39,7 @@ All source code, 3D models, and instructions are available via a public Git repo
 - [DS3231 Real Time Clock](https://www.amazon.com/DS3231-AT24C32-Module-Memory-Replace/dp/B09LLMYBM1/ref=sr_1_3?crid=1BLEU9LECRJMZ&keywords=DS3231&qid=1678856149&sprefix=ds3231%2Caps%2C210&sr=8-3)
 - [Portable Battery Pack](https://www.ebay.com/itm/255619278468?_trkparms=amclksrc%3DITM%26aid%3D1110006%26algo%3DHOMESPLICE.SIM%26ao%3D1%26asc%3D20201210111314%26meid%3D1b708009ddcf41b89690278c51b97c9c%26pid%3D101195%26rk%3D3%26rkt%3D12%26sd%3D333142578258%26itm%3D255619278468%26pmt%3D1%26noa%3D0%26pg%3D2047675%26algv%3DSimplAMLv11WebTrimmedV3MskuWithLambda85KnnRecallV1V4V6ItemNrtInQueryAndCassiniVisualRankerAndBertRecall%26brand%3DUnbranded&_trksid=p2047675.c101195.m1851&amdata=cksum%3A2556192784681b708009ddcf41b89690278c51b97c9c%7Cenc%3AAQAHAAABUBEC%252B8HimpTF6XPanG8lCeF3G6jifrewDlLoKJMPz0RnJH8s%252BUBlIo2cSQSdgSGvSVvCKC6zF4X6tOnQIr392G0gldH8QjhGQ2fmdEokLVFt29UKj%252FEph29NUO0KxqhEb84gZhbKWlWfbravBJF8o5LISgG2dcpA51F2tp%252FAjdDXVPbsVnN4DaGk68mYhZIyZfhGTL6kZyQcEA0gVIBNUF40sRI1vM4krT9djMNQBgYgGtmT09IXDkW3pugX7k9pXznTdOzG3awVKD14ZHS06%252BuF0NdSErPNxEIyY%252F6%252B0FhdfccID7hNfi%252Bo8W3D9sxwQxg3z5HnpjgFuwt73ec%252BuI5udWyjeuvYg%252FisPPivejm0U%252BSObok3xOkZNrQkze1ZFE6lQKMSdZNB8XRJfNykS2PQ7Bk%252FAXMipgmR25zL7I%252FCNeJ90RU6IMPzBVHOa44hOQ%253D%253D%7Campid%3APL_CLK%7Cclp%3A2047675)** 
 - [MG90 Servo](https://www.temu.com/mg90s-metal-gear-digital-9g-servo-for-rc-helicopter-plane-boat-car-mg90-9g-g-601099512694957.html?top_gallery_url=https%3A%2F%2Fimg.kwcdn.com%2Fproduct%2FFancyalgo%2FVirtualModelMatting%2F4a2390a98d1a7c1fa8c26db3e75cd98e.jpg&spec_gallery_id=7352047&refer_page_sn=10009&refer_source=10022&freesia_scene=2&_oak_freesia_scene=2&search_key=mg90s&refer_page_el_sn=200049&_x_sessn_id=soctzd02zb&refer_page_name=search_result&refer_page_id=10009_1678856797092_qg7j44zg6v)  
-**If you can afford it, I'd recommend spending a bit more money to purchase a nice battery. Many cheap batteries on the internet lie about their capacity and you'll severally limit the battery life of the smart lock if you get a bad battery - could just buy a [case](https://www.aliexpress.us/item/3256802714206963.html?spm=a2g0o.productlist.main.3.b276YyLwYyLwDm&algo_pvid=d92820b4-48ba-4548-8858-86d2e304d7d0&algo_exp_id=d92820b4-48ba-4548-8858-86d2e304d7d0-1&pdp_ext_f=%7B%22sku_id%22%3A%2212000022681529511%22%7D&pdp_npi=3%40dis%21USD%215.69%212.84%21%21%21%21%21%40212249cb16788561791555458d0706%2112000022681529511%21sea%21US%210&curPageLogUid=1C2PYCcguKhi) (An 18650 battery case if important because it has a built in charing circuit and boost converter) and then get the [battery](https://www.18650batterystore.com/products/samsung-35e-protected) separtely to ensure you get a good product
+**If you can afford it, I'd recommend spending a bit more money to purchase a nice battery. Many cheap batteries on the internet lie about their capacity and you'll severally limit the battery life of the smart lock if you get a bad battery - could just buy a [case](https://www.aliexpress.us/item/3256802714206963.html?spm=a2g0o.productlist.main.3.b276YyLwYyLwDm&algo_pvid=d92820b4-48ba-4548-8858-86d2e304d7d0&algo_exp_id=d92820b4-48ba-4548-8858-86d2e304d7d0-1&pdp_ext_f=%7B%22sku_id%22%3A%2212000022681529511%22%7D&pdp_npi=3%40dis%21USD%215.69%212.84%21%21%21%21%21%40212249cb16788561791555458d0706%2112000022681529511%21sea%21US%210&curPageLogUid=1C2PYCcguKhi) or [this one](https://www.amazon.com/Diymore-Battery-Shield-Raspberry-Arduino/dp/B0784FPF8J/ref=sr_1_6?keywords=18650+power+bank&qid=1679426706&sr=8-6) (An 18650 battery case if important because it has a built in charing circuit and boost converter) and then get the [battery](https://www.18650batterystore.com/products/samsung-35e-protected) separtely to ensure you get a good product
 - 2x MOSFET
 - SPST Switch
 - Momentary Switch
@@ -53,11 +52,23 @@ All source code, 3D models, and instructions are available via a public Git repo
 
 # Instructions
 Work in progress. Will be posted on instructables.com
+<!-- finish... -->
 
 # Systems
-## Code  
-## PCB  
+## Code
+All of the code for this project is located in a single file called 
+**arduino_smart_home_lock_code.ino** located in the arduino_smart_home_lock folder. This single file will contain all the functions needed for the arduino nano. If you are curious, I encourage you to read through the code to become familiar with it. There are also variables you may change such as the password to access the lock via bluetooth.
+<!-- finish... -->
+
+## PCB
+The schematic and PCB for this project was created in Eagle - a software produced by autodesk. The PCB folder contains both a schematic (for reference and hand soldering) and a PCB file that can be manufactured by companies such as [jlcpcb](https://jlcpcb.com/) if you'd like to have a board that is professionally made. 
+
 ## Mechanical
+The case for this smart lock can be 3D printed using any home 3D printer. All tolerances for fits have been adjusted for the ender 3 v2 but should work on any printer with equal or higher printing accuracy. Several versions of the case are available in the STL folder.
+<!-- finish... -->
+
+# Disclaimer
+<!-- finish... -->
 
 # Acknowledgements
 Special thanks to the following individuals for providing critical support and feedback to make this project a success:  
