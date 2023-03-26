@@ -39,13 +39,13 @@ void alarmISR();
 
 // main loop
 void loop() {
-  // char events[] = {'5', '1', '4', '3', '6', 'L', '0', '1', '0', '0', '5', 'U', '6', '1', '5', '0', '2', 'U', '4', '2', '3', '5', '9', 'L', '5', '1', '4', '1', '8', 'L', NULL};
-  // char events[] = {'3', '1', '7', '5', '4', 'L'};
-  // long alarm = nextEvent(events);
-  // setAlarm(alarm);
-  // enterSleep();
-  DOW();
-  delay(100000);
+  char events[] = {'5', '1', '1', '1', '0', 'L','5', '1', '1', '1', '2', 'L','5', '1', '1', '1', '3', 'L','5', '1', '1', '1', '4', 'L', NULL};
+  // char events[] = {'5', '1', '1', '0', '8', 'L'};
+  long alarm = nextEvent(events);
+  setAlarm(alarm);
+  enterSleep();
+  // DOW();
+  // delay(100000);
 
   
 }
@@ -121,7 +121,6 @@ long nextEvent(char events[]) {
 }
 
 
-
 void setAlarm(long timeToEvent) {
   DateTime now = rtc.now();
   DateTime nextAlarm = now.unixtime() + timeToEvent;
@@ -156,6 +155,40 @@ void alarmISR() {
   Serial.print("State: ");
   Serial.println(state);
 }
+
+
+void setSchedule() {
+  int saves = 0;
+  char state = 'W';
+  char events[] = {'1', '0', '7', '4', '0', 'L',
+                 '2', '0', '7', '4', '0', 'L',
+                 '3', '0', '7', '4', '0', 'L',
+                 '4', '0', '7', '4', '0', 'L',
+                 '5', '0', '7', '4', '0', 'L',
+                 '0', '0', '7', '2', '0', 'U',
+                 '1', '0', '7', '2', '0', 'U',
+                 '2', '0', '7', '2', '0', 'U',
+                 '3', '0', '7', '2', '0', 'U',
+                 '4', '0', '7', '2', '0', 'U',
+                 '5', '0', '7', '2', '0', 'U',
+                 '1', '1', '5', '2', '0', 'U',
+                 '2', '1', '0', '2', '0', 'U',
+                 '3', '1', '6', '2', '0', 'U',
+                 '4', '1', '0', '2', '0', 'U',
+                 '5', '1', '0', '2', '0', 'U',
+                 '0', '2', '3', '3', '0', 'L',
+                 '1', '2', '3', '3', '0', 'L',
+                 '2', '2', '3', '3', '0', 'L',
+                 '3', '2', '3', '3', '0', 'L',
+                 '4', '2', '3', '3', '0', 'L',
+                 '5', '2', '3', '3', '0', 'L',
+                 '6', '2', '3', '3', '0', 'L',  
+    };
+    //save events to eeprom
+    for (int i = 2; i < sizeof(events)+2; i++) {
+      EEPROM.write(i, events[i]);
+      saves++;
+    }
 
 
 void getInput(){
