@@ -588,11 +588,11 @@ void scheduleMode(){
       Serial.flush();
       if(state == 'U'){
         servo(0);
-        buttonState = 0;
+        buttonState = 1;
       }
       else if(state == 'L'){
         servo(1);
-        buttonState = 1;
+        buttonState = 0;
       }
       delay(60000); //NOTE: temporary fix for alarm repeating - will disable lock for 1 minute
     }
@@ -669,6 +669,7 @@ void dev(){
       }
       else if(input == '4'){
         for (int i = 0 ; i < EEPROM.length() ; i++) {
+          // Serial.print(String(char(EEPROM.read(i))) + " ");
           bprint(String(char(EEPROM.read(i))) + " ");
         }
       }
